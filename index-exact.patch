@@ -1,0 +1,20 @@
+--- /mnt/data/thumbpatch_work/pink-promise-video-drive-migration-upgrade/index.html	2026-07-27 16:13:24.000000000 +0000
++++ /mnt/data/pink-promise-video-thumbnail-patch/index.html	2026-07-28 03:04:23.690035243 +0000
+@@ -915,7 +915,7 @@
+               </div>
+               <div class="soft-card rounded-3xl p-5">
+                 <div class="flex items-start justify-between gap-3">
+-                  <div class="min-w-0"><p class="text-xs font-bold uppercase tracking-[.16em] text-rosewood-600">One-time cleanup</p><p class="mt-1 text-sm font-bold text-rosewood-950">Move starter videos to Drive</p><p id="videoMigrationSettingsText" class="mt-1 text-xs leading-5 text-slate-500">Scan your local videos folder, upload every video to Google Drive, and replace the GitHub starter copies without breaking the gallery.</p></div>
++                  <div class="min-w-0"><p class="text-xs font-bold uppercase tracking-[.16em] text-rosewood-600">Video Drive tools</p><p class="mt-1 text-sm font-bold text-rosewood-950">Video migration & thumbnails</p><p id="videoMigrationSettingsText" class="mt-1 text-xs leading-5 text-slate-500">Move local videos to Google Drive or generate thumbnails for videos that are already there.</p></div>
+                   <span id="videoMigrationSettingsStatus" class="shrink-0 rounded-full bg-amber-100 px-2.5 py-1 text-[10px] font-bold text-amber-700">Ready</span>
+                 </div>
+                 <button id="openVideoMigrationBtn" class="pressable mt-4 w-full rounded-xl border border-rosewood-200 bg-rosewood-50 px-3 py-2.5 text-xs font-bold text-rosewood-800 hover:bg-rosewood-100" type="button">Move local videos to Google Drive</button>
+@@ -1078,7 +1078,7 @@
+   <div id="videoMigrationModal" class="modal-shell fixed inset-0 z-[55] hidden items-center justify-center bg-rosewood-950/40 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="videoMigrationModalTitle">
+     <div class="modal-card scrollbar-thin w-full max-w-2xl rounded-[1.6rem] bg-white shadow-2xl">
+       <div class="sticky top-0 z-10 flex items-center justify-between border-b border-rosewood-100 bg-white/95 px-4 py-3 backdrop-blur sm:px-5">
+-        <div><p class="text-[10px] font-bold uppercase tracking-[.18em] text-rosewood-600">Google Drive migration</p><h2 id="videoMigrationModalTitle" class="font-display text-xl font-bold text-rosewood-950">Move starter videos</h2></div>
++        <div><p class="text-[10px] font-bold uppercase tracking-[.18em] text-rosewood-600">Google Drive video tools</p><h2 id="videoMigrationModalTitle" class="font-display text-xl font-bold text-rosewood-950">Videos & thumbnails</h2></div>
+         <button class="modal-close flex h-9 w-9 items-center justify-center rounded-xl bg-rosewood-50 text-rosewood-800 hover:bg-rosewood-100" data-close-modal="videoMigrationModal" type="button" aria-label="Close">×</button>
+       </div>
+       <div class="p-4 sm:p-5">

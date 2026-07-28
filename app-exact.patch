@@ -1,0 +1,552 @@
+--- /mnt/data/thumbpatch_work/pink-promise-video-drive-migration-upgrade/app.js	2026-07-27 16:13:24.000000000 +0000
++++ /mnt/data/pink-promise-video-thumbnail-patch/app.js	2026-07-28 03:03:07.002032725 +0000
+@@ -476,6 +476,121 @@
+   });
+ }
+ 
++function waitForVideoEvent(video, eventNames, timeoutMs = 18000) {
++  const names = Array.isArray(eventNames) ? eventNames : [eventNames];
++  return new Promise((resolve, reject) => {
++    let timer = null;
++    const cleanup = () => {
++      if (timer) clearTimeout(timer);
++      names.forEach((name) => video.removeEventListener(name, handleSuccess));
++      video.removeEventListener("error", handleError);
++    };
++    const handleSuccess = () => {
++      cleanup();
++      resolve();
++    };
++    const handleError = () => {
++      cleanup();
++      reject(new Error("This video format could not be decoded for a thumbnail."));
++    };
++    names.forEach((name) => video.addEventListener(name, handleSuccess, { once: true }));
++    video.addEventListener("error", handleError, { once: true });
++    timer = setTimeout(() => {
++      cleanup();
++      reject(new Error("Video thumbnail generation timed out."));
++    }, timeoutMs);
++  });
++}
++
++async function generateVideoThumbnailFile(file) {
++  if (!(file instanceof File || file instanceof Blob)) throw new Error("Choose a valid video file.");
++  const objectUrl = URL.createObjectURL(file);
++  const video = document.createElement("video");
++  video.preload = "metadata";
++  video.muted = true;
++  video.playsInline = true;
++  video.setAttribute("playsinline", "");
++  video.src = objectUrl;
++
++  try {
++    video.load();
++    if (video.readyState < 1) await waitForVideoEvent(video, "loadedmetadata");
++    const duration = Number.isFinite(video.duration) ? video.duration : 0;
++    const target = duration > 0.4 ? Math.min(Math.max(duration * 0.08, 0.35), 2.5, Math.max(0.1, duration - 0.15)) : 0;
++    if (target > 0.05) {
++      video.currentTime = target;
++      await waitForVideoEvent(video, ["seeked", "loadeddata"]);
++    } else if (video.readyState < 2) {
++      await waitForVideoEvent(video, "loadeddata");
++    }
++
++    if (typeof video.requestVideoFrameCallback === "function") {
++      await new Promise((resolve) => video.requestVideoFrameCallback(() => resolve()));
++    }
++
++    const sourceWidth = Number(video.videoWidth || 0);
++    const sourceHeight = Number(video.videoHeight || 0);
++    if (!sourceWidth || !sourceHeight) throw new Error("The video has no readable frame.");
++    const maxWidth = 960;
++    const maxHeight = 720;
++    const scale = Math.min(1, maxWidth / sourceWidth, maxHeight / sourceHeight);
++    const canvas = document.createElement("canvas");
++    canvas.width = Math.max(1, Math.round(sourceWidth * scale));
++    canvas.height = Math.max(1, Math.round(sourceHeight * scale));
++    const context = canvas.getContext("2d", { alpha: false });
++    if (!context) throw new Error("The browser could not create a thumbnail canvas.");
++    context.fillStyle = "#2b1722";
++    context.fillRect(0, 0, canvas.width, canvas.height);
++    context.drawImage(video, 0, 0, canvas.width, canvas.height);
++    const blob = await canvasToBlob(canvas, "image/jpeg", 0.82);
++    if (!blob) throw new Error("The browser could not encode the video thumbnail.");
++    const baseName = String(file.name || "video").replace(/\.[^.]+$/, "").slice(0, 90) || "video";
++    return new File([blob], `${baseName}-thumbnail.jpg`, { type: "image/jpeg", lastModified: Date.now() });
++  } finally {
++    video.pause();
++    video.removeAttribute("src");
++    video.load();
++    URL.revokeObjectURL(objectUrl);
++  }
++}
++
++async function uploadVideoThumbnailToDrive(file, { itemId, album, onProgress = () => {} } = {}) {
++  try {
++    onProgress(3);
++    const thumbnailFile = await generateVideoThumbnailFile(file);
++    onProgress(30);
++    const logicalPath = `couples/${state.coupleId}/gallery/video-thumbnails/${album}/${itemId}-${randomId("thumb")}-${safeFileName(thumbnailFile.name)}`;
++    const uploaded = await uploadFileToDrive(thumbnailFile, logicalPath, (percent) => {
++      onProgress(30 + Math.round(percent * 0.7));
++    }, "gallery");
++    onProgress(100);
++    return uploaded;
++  } catch (error) {
++    console.warn("Video thumbnail generation skipped", file?.name, error);
++    return null;
++  }
++}
++
++function videoThumbnailStorageData(uploaded = null, existing = null) {
++  if (uploaded?.driveFileId) {
++    return {
++      thumbnailDriveFileId: uploaded.driveFileId,
++      thumbnailStoragePath: uploaded.path || "",
++      thumbnailContentType: uploaded.type || "image/jpeg",
++      thumbnailFileSize: Number(uploaded.size || 0)
++    };
++  }
++  if (existing?.thumbnailDriveFileId) {
++    return {
++      thumbnailDriveFileId: existing.thumbnailDriveFileId,
++      thumbnailStoragePath: existing.thumbnailStoragePath || "",
++      thumbnailContentType: existing.thumbnailContentType || "image/jpeg",
++      thumbnailFileSize: Number(existing.thumbnailFileSize || 0)
++    };
++  }
++  return {};
++}
++
+ function clearGalleryFileSelection() {
+   for (const selected of state.gallerySelectedFiles || []) {
+     if (selected.previewUrl) URL.revokeObjectURL(selected.previewUrl);
+@@ -550,13 +665,22 @@
+   const migrated = migratedVideoRecords();
+   const migratedStarterIds = new Set(migrated.map((item) => item.sourceStarterId).filter(Boolean));
+   const completed = starterItems.filter((item) => hidden[item.id] || migratedStarterIds.has(item.id)).length;
++  const missingThumbnails = migrated.filter((item) => !item.thumbnailDriveFileId).length;
++
++  if (missingThumbnails > 0) {
++    badge.textContent = `${missingThumbnails} blank`;
++    badge.className = "shrink-0 rounded-full bg-amber-100 px-2.5 py-1 text-[10px] font-bold text-amber-700";
++    text.textContent = `${missingThumbnails} Google Drive video${missingThumbnails === 1 ? " needs" : "s need"} a thumbnail. Select your local videos folder once to generate them without re-uploading the videos.`;
++    button.textContent = "Generate video thumbnails";
++    return;
++  }
+ 
+   if (!starterItems.length) {
+-    badge.textContent = migrated.length ? `${migrated.length} in Drive` : "Drive only";
++    badge.textContent = migrated.length ? `${migrated.length} ready` : "Drive only";
+     badge.className = "shrink-0 rounded-full bg-emerald-100 px-2.5 py-1 text-[10px] font-bold text-emerald-700";
+     text.textContent = migrated.length
+-      ? `${migrated.length} video${migrated.length === 1 ? " is" : "s are"} stored in Google Drive. The starter manifest no longer contains GitHub videos.`
+-      : "No starter videos are listed in the current manifest. You can still scan a local videos folder to add unlisted videos to Drive.";
++      ? `${migrated.length} video${migrated.length === 1 ? " is" : "s are"} stored in Google Drive with gallery thumbnails.`
++      : "No starter videos are listed. You can still scan a local videos folder to add unlisted videos to Drive.";
+     button.textContent = "Scan local videos folder";
+     return;
+   }
+@@ -564,7 +688,7 @@
+   if (completed >= starterItems.length) {
+     badge.textContent = "Migrated";
+     badge.className = "shrink-0 rounded-full bg-emerald-100 px-2.5 py-1 text-[10px] font-bold text-emerald-700";
+-    text.textContent = `All ${starterItems.length} starter video${starterItems.length === 1 ? "" : "s"} have Drive replacements. Run the included final cleanup script before pushing to GitHub.`;
++    text.textContent = `All ${starterItems.length} starter video${starterItems.length === 1 ? "" : "s"} have Drive replacements and thumbnails.`;
+     button.textContent = "Review video migration";
+   } else {
+     badge.textContent = `${completed}/${starterItems.length}`;
+@@ -597,12 +721,18 @@
+ function videoMigrationExistingKeys() {
+   const keys = new Set();
+   const starterIds = new Set();
++  const recordsByKey = new Map();
++  const recordsByStarterId = new Map();
+   for (const item of migratedVideoRecords()) {
+-    if (item.migrationKey) keys.add(item.migrationKey);
+-    else keys.add(migrationVideoKey(item.album, item.filename));
+-    if (item.sourceStarterId) starterIds.add(item.sourceStarterId);
++    const key = item.migrationKey || migrationVideoKey(item.album, item.filename);
++    keys.add(key);
++    recordsByKey.set(key, item);
++    if (item.sourceStarterId) {
++      starterIds.add(item.sourceStarterId);
++      recordsByStarterId.set(item.sourceStarterId, item);
++    }
+   }
+-  return { keys, starterIds };
++  return { keys, starterIds, recordsByKey, recordsByStarterId };
+ }
+ 
+ function renderVideoMigrationSelection() {
+@@ -610,10 +740,13 @@
+   const startButton = $("startVideoMigrationBtn");
+   if (!root || !startButton) return;
+   const files = state.videoMigrationFiles || [];
+-  const ready = files.filter((item) => !item.error && !item.alreadyMigrated);
+-  const skipped = files.filter((item) => item.alreadyMigrated);
++  const ready = files.filter((item) => !item.error && (!item.alreadyMigrated || item.needsThumbnail));
++  const thumbnailOnly = ready.filter((item) => item.needsThumbnail);
++  const fullUploads = ready.filter((item) => !item.needsThumbnail);
++  const skipped = files.filter((item) => item.alreadyMigrated && !item.needsThumbnail);
+   const invalid = files.filter((item) => item.error);
+   startButton.disabled = state.videoMigrationRunning || !ready.length;
++  startButton.textContent = thumbnailOnly.length && !fullUploads.length ? "Generate thumbnails" : "Upload and migrate";
+ 
+   if (!files.length) {
+     root.innerHTML = "No folder selected yet.";
+@@ -624,14 +757,20 @@
+     vlogs: ready.filter((item) => item.album === "vlogs").length,
+     "normal-videos": ready.filter((item) => item.album === "normal-videos").length
+   };
+-  const totalSize = ready.reduce((sum, item) => sum + Number(item.file?.size || 0), 0);
++  const totalSize = fullUploads.reduce((sum, item) => sum + Number(item.file?.size || 0), 0);
+   const preview = files.slice(0, 12).map((item) => {
+-    const status = item.error ? item.error : item.alreadyMigrated ? "Already in Drive — skipped" : `${VIDEO_ALBUMS[item.album]} · ${formatFileSize(item.file.size)}`;
+-    const tone = item.error ? "text-red-600" : item.alreadyMigrated ? "text-amber-600" : "text-slate-500";
++    const status = item.error
++      ? item.error
++      : item.needsThumbnail
++        ? "Generate thumbnail only"
++        : item.alreadyMigrated
++          ? "Already in Drive with thumbnail — skipped"
++          : `${VIDEO_ALBUMS[item.album]} · ${formatFileSize(item.file.size)}`;
++    const tone = item.error ? "text-red-600" : item.needsThumbnail ? "text-rosewood-700" : item.alreadyMigrated ? "text-amber-600" : "text-slate-500";
+     return `<div class="flex items-center justify-between gap-3 border-b border-slate-100 py-2 last:border-0"><span class="min-w-0 truncate font-semibold text-slate-700">${escapeHTML(item.file.name)}</span><span class="shrink-0 text-[10px] ${tone}">${escapeHTML(status)}</span></div>`;
+   }).join("");
+ 
+-  root.innerHTML = `<div class="grid grid-cols-2 gap-2 sm:grid-cols-4"><div class="rounded-xl bg-white p-2 ring-1 ring-slate-100"><strong class="block text-lg text-rosewood-900">${ready.length}</strong><span class="text-[10px] text-slate-500">Ready</span></div><div class="rounded-xl bg-white p-2 ring-1 ring-slate-100"><strong class="block text-lg text-rosewood-900">${byAlbum.vlogs}</strong><span class="text-[10px] text-slate-500">Vlogs</span></div><div class="rounded-xl bg-white p-2 ring-1 ring-slate-100"><strong class="block text-lg text-rosewood-900">${byAlbum["normal-videos"]}</strong><span class="text-[10px] text-slate-500">Normal videos</span></div><div class="rounded-xl bg-white p-2 ring-1 ring-slate-100"><strong class="block text-lg text-rosewood-900">${escapeHTML(formatFileSize(totalSize))}</strong><span class="text-[10px] text-slate-500">Upload size</span></div></div><div class="mt-3 max-h-52 overflow-y-auto rounded-xl bg-white px-3 ring-1 ring-slate-100">${preview}${files.length > 12 ? `<p class="py-2 text-center text-[10px] text-slate-400">+ ${files.length - 12} more files</p>` : ""}</div>${skipped.length || invalid.length ? `<p class="mt-2 text-[10px] leading-4 text-slate-500">Skipped: ${skipped.length} already migrated · ${invalid.length} invalid/unrecognized.</p>` : ""}`;
++  root.innerHTML = `<div class="grid grid-cols-2 gap-2 sm:grid-cols-4"><div class="rounded-xl bg-white p-2 ring-1 ring-slate-100"><strong class="block text-lg text-rosewood-900">${ready.length}</strong><span class="text-[10px] text-slate-500">Ready</span></div><div class="rounded-xl bg-white p-2 ring-1 ring-slate-100"><strong class="block text-lg text-rosewood-900">${thumbnailOnly.length}</strong><span class="text-[10px] text-slate-500">Thumbnail repair</span></div><div class="rounded-xl bg-white p-2 ring-1 ring-slate-100"><strong class="block text-lg text-rosewood-900">${byAlbum.vlogs}/${byAlbum["normal-videos"]}</strong><span class="text-[10px] text-slate-500">Vlogs / normal</span></div><div class="rounded-xl bg-white p-2 ring-1 ring-slate-100"><strong class="block text-lg text-rosewood-900">${escapeHTML(formatFileSize(totalSize))}</strong><span class="text-[10px] text-slate-500">Video upload size</span></div></div><div class="mt-3 max-h-52 overflow-y-auto rounded-xl bg-white px-3 ring-1 ring-slate-100">${preview}${files.length > 12 ? `<p class="py-2 text-center text-[10px] text-slate-400">+ ${files.length - 12} more files</p>` : ""}</div>${skipped.length || invalid.length ? `<p class="mt-2 text-[10px] leading-4 text-slate-500">Skipped: ${skipped.length} already complete · ${invalid.length} invalid/unrecognized.</p>` : ""}`;
+ }
+ 
+ function openVideoMigrationModal() {
+@@ -667,6 +806,7 @@
+     const album = inferMigrationAlbum(file, starterByFilename);
+     const starterItem = album ? starterByAlbumAndName.get(`${album}/${file.name.toLowerCase()}`) || null : null;
+     const migrationKey = migrationVideoKey(album, file.name);
++    const existingRecord = (starterItem?.id && existing.recordsByStarterId.get(starterItem.id)) || existing.recordsByKey.get(migrationKey) || null;
+     let error = "";
+     if (!album || !VIDEO_ALBUMS[album]) error = "Folder must be vlogs or normal-videos";
+     else if (file.size > 250 * 1024 * 1024) error = "Larger than 250 MB — compress first";
+@@ -676,8 +816,10 @@
+       starterItem,
+       starterId: starterItem?.id || "",
+       migrationKey,
++      existingRecord,
+       error,
+-      alreadyMigrated: Boolean((starterItem?.id && existing.starterIds.has(starterItem.id)) || existing.keys.has(migrationKey))
++      alreadyMigrated: Boolean(existingRecord),
++      needsThumbnail: Boolean(existingRecord?.driveFileId && !existingRecord?.thumbnailDriveFileId)
+     };
+   }).sort((a, b) => a.album.localeCompare(b.album) || new Intl.Collator("en", { numeric: true }).compare(a.file.name, b.file.name));
+   renderVideoMigrationSelection();
+@@ -685,18 +827,22 @@
+ 
+ async function migrateSelectedVideosToDrive() {
+   if (state.videoMigrationRunning) return;
+-  const ready = (state.videoMigrationFiles || []).filter((item) => !item.error && !item.alreadyMigrated);
+-  if (!ready.length) return toast("Choose a videos folder with files that still need migration.", "error");
++  const ready = (state.videoMigrationFiles || []).filter((item) => !item.error && (!item.alreadyMigrated || item.needsThumbnail));
++  if (!ready.length) return toast("Choose your local videos folder. Completed videos will be skipped automatically.", "error");
+   if (!getGoogleDriveStatus().connected) {
+     try { await connectGoogleDrive({ prompt: "consent" }); }
+     catch (error) { return toast(friendlyError(error), "error"); }
+   }
+ 
+-  const totalBytes = ready.reduce((sum, item) => sum + Math.max(1, Number(item.file.size || 0)), 0);
++  const thumbnailOnlyCount = ready.filter((item) => item.needsThumbnail).length;
++  const fullUploadCount = ready.length - thumbnailOnlyCount;
++  const totalBytes = ready.reduce((sum, item) => sum + Math.max(1, item.needsThumbnail ? Math.min(Number(item.file.size || 0), 2 * 1024 * 1024) : Number(item.file.size || 0)), 0);
+   const confirmed = await confirmAction({
+-    title: `Move ${ready.length} video${ready.length === 1 ? "" : "s"} to Drive?`,
+-    message: `${formatFileSize(totalBytes)} will be uploaded to the connected Google Drive. Keep the app open. Starter video entries will be replaced only after every upload succeeds.`,
+-    confirmText: "Start migration",
++    title: fullUploadCount ? `Process ${ready.length} video${ready.length === 1 ? "" : "s"}?` : `Generate ${ready.length} thumbnail${ready.length === 1 ? "" : "s"}?`,
++    message: fullUploadCount
++      ? `${fullUploadCount} video${fullUploadCount === 1 ? "" : "s"} will be uploaded to Drive and ${thumbnailOnlyCount} existing video thumbnail${thumbnailOnlyCount === 1 ? "" : "s"} will be repaired. Keep the app open.`
++      : `The videos are already in Google Drive. Pink Promise will only create and upload small thumbnail images from your local copies.`,
++    confirmText: fullUploadCount ? "Start" : "Generate thumbnails",
+     icon: "▶"
+   });
+   if (!confirmed) return;
+@@ -710,40 +856,78 @@
+   renderVideoMigrationSelection();
+   progressRoot?.classList.remove("hidden");
+   resultRoot?.classList.add("hidden");
+-  setButtonLoading(button, true, "Uploading videos…");
++  setButtonLoading(button, true, thumbnailOnlyCount === ready.length ? "Creating thumbnails…" : "Processing videos…");
+ 
++  const itemWeight = (item) => Math.max(1, item.needsThumbnail ? Math.min(Number(item.file.size || 0), 2 * 1024 * 1024) : Number(item.file.size || 0));
+   const updateMigrationProgress = (activeName = "") => {
+     let completedBytes = 0;
+     ready.forEach((item, index) => {
+-      completedBytes += Math.max(1, Number(item.file.size || 0)) * (Number(progressByIndex.get(index) || 0) / 100);
++      completedBytes += itemWeight(item) * (Number(progressByIndex.get(index) || 0) / 100);
+     });
+     const percent = Math.max(0, Math.min(100, Math.round((completedBytes / totalBytes) * 100)));
+     if ($("videoMigrationProgressBar")) $("videoMigrationProgressBar").style.width = `${percent}%`;
+     if ($("videoMigrationProgressPercent")) $("videoMigrationProgressPercent").textContent = `${percent}%`;
+-    if ($("videoMigrationProgressLabel")) $("videoMigrationProgressLabel").textContent = activeName ? `Uploading ${activeName}` : "Uploading videos…";
++    if ($("videoMigrationProgressLabel")) $("videoMigrationProgressLabel").textContent = activeName ? `Processing ${activeName}` : "Processing videos…";
+     const finished = [...progressByIndex.values()].filter((value) => Number(value) >= 100).length;
+-    if ($("videoMigrationProgressDetail")) $("videoMigrationProgressDetail").textContent = `${finished} of ${ready.length} uploaded · ${formatFileSize(totalBytes)} total. Keep Pink Promise open.`;
++    if ($("videoMigrationProgressDetail")) $("videoMigrationProgressDetail").textContent = `${finished} of ${ready.length} complete. Keep Pink Promise open.`;
+   };
+ 
+   try {
+     const results = await runWithConcurrency(ready, 2, async (entry, index) => {
+-      const itemId = push(ref(db, `couples/${state.coupleId}/gallery`)).key;
++      const itemId = entry.existingRecord?.id || push(ref(db, `couples/${state.coupleId}/gallery`)).key;
+       progressByIndex.set(index, 1);
+       updateMigrationProgress(entry.file.name);
++
++      if (entry.needsThumbnail) {
++        const thumbnail = await uploadVideoThumbnailToDrive(entry.file, {
++          itemId,
++          album: entry.album,
++          onProgress: (percent) => {
++            progressByIndex.set(index, percent);
++            updateMigrationProgress(entry.file.name);
++          }
++        });
++        if (!thumbnail?.driveFileId) throw new Error(`A thumbnail could not be created for ${entry.file.name}.`);
++        uploadedFiles.push(thumbnail);
++        progressByIndex.set(index, 100);
++        updateMigrationProgress(entry.file.name);
++        return { mode: "thumbnail", entry, itemId, thumbnail };
++      }
++
+       const logicalPath = `couples/${state.coupleId}/gallery/videos/${entry.album}/${itemId}-${randomId("video")}-${safeFileName(entry.file.name)}`;
+       const uploaded = await uploadFileToDrive(entry.file, logicalPath, (percent) => {
+-        progressByIndex.set(index, percent);
++        progressByIndex.set(index, Math.round(percent * 0.88));
+         updateMigrationProgress(entry.file.name);
+       }, "gallery");
+       uploadedFiles.push(uploaded);
++      const thumbnail = await uploadVideoThumbnailToDrive(entry.file, {
++        itemId,
++        album: entry.album,
++        onProgress: (percent) => {
++          progressByIndex.set(index, 88 + Math.round(percent * 0.12));
++          updateMigrationProgress(entry.file.name);
++        }
++      });
++      if (thumbnail?.driveFileId) uploadedFiles.push(thumbnail);
+       progressByIndex.set(index, 100);
+       updateMigrationProgress(entry.file.name);
+-      return { entry, itemId, uploaded };
++      return { mode: "full", entry, itemId, uploaded, thumbnail };
+     });
+ 
+     const updates = {};
+     const authorName = state.profile?.displayName || currentMember()?.displayName || "My love";
+-    for (const { entry, itemId, uploaded } of results) {
++    for (const result of results) {
++      const { entry, itemId } = result;
++      if (result.mode === "thumbnail") {
++        const thumbnailData = videoThumbnailStorageData(result.thumbnail);
++        Object.entries(thumbnailData).forEach(([key, value]) => {
++          updates[`gallery/${itemId}/${key}`] = value;
++        });
++        updates[`gallery/${itemId}/updatedAt`] = serverTimestamp();
++        continue;
++      }
++
++      const { uploaded, thumbnail } = result;
+       const source = entry.starterItem || {};
+       const filename = String(entry.file.name || uploaded.name || "video.mp4").slice(-100);
+       updates[`gallery/${itemId}`] = {
+@@ -759,6 +943,7 @@
+         storagePath: uploaded.path,
+         fileSize: Number(uploaded.size || entry.file.size || 0),
+         contentType: uploaded.type || inferredContentType(entry.file),
++        ...videoThumbnailStorageData(thumbnail),
+         migrationKey: entry.migrationKey,
+         sourceStarterId: entry.starterId || "",
+         authorId: state.user.uid,
+@@ -776,21 +961,26 @@
+     }
+     await update(ref(db, `couples/${state.coupleId}`), updates);
+ 
+-    state.videoMigrationFiles = state.videoMigrationFiles.map((item) => ready.includes(item) ? { ...item, alreadyMigrated: true } : item);
++    state.videoMigrationFiles = state.videoMigrationFiles.map((item) => {
++      if (!ready.includes(item)) return item;
++      return { ...item, alreadyMigrated: true, needsThumbnail: false };
++    });
+     renderVideoMigrationSelection();
+     renderVideoMigrationSettingsStatus();
++    const repaired = results.filter((item) => item.mode === "thumbnail").length;
++    const uploadedCount = results.filter((item) => item.mode === "full").length;
+     if (resultRoot) {
+       resultRoot.className = "mt-4 rounded-2xl border border-emerald-100 bg-emerald-50 p-3 text-xs leading-5 text-emerald-800";
+-      resultRoot.innerHTML = `<strong>Migration complete.</strong> ${results.length} video${results.length === 1 ? " was" : "s were"} uploaded to Google Drive and linked to the gallery. Next, close the app and run <code class="rounded bg-white/70 px-1 py-0.5">finalize-video-migration.bat</code> in the project folder, then commit and push.`;
++      resultRoot.innerHTML = `<strong>Complete.</strong> ${uploadedCount ? `${uploadedCount} video${uploadedCount === 1 ? " was" : "s were"} uploaded. ` : ""}${repaired ? `${repaired} existing thumbnail${repaired === 1 ? " was" : "s were"} generated.` : " New video thumbnails were created automatically."}`;
+     }
+-    toast(`${results.length} video${results.length === 1 ? "" : "s"} moved to Google Drive.`);
++    toast(`${results.length} video${results.length === 1 ? "" : "s"} now ${results.length === 1 ? "has" : "have"} a thumbnail.`);
+   } catch (error) {
+-    await Promise.allSettled(uploadedFiles.filter((item) => item?.driveFileId).map(deleteUploadedMedia));
+-    console.error("Starter video migration failed", error);
++    await Promise.allSettled(uploadedFiles.filter((item) => item?.driveFileId).map((item) => deleteGoogleDriveFile(item.driveFileId)));
++    console.error("Video thumbnail/migration process failed", error);
+     if (resultRoot) {
+       resultRoot.classList.remove("hidden");
+       resultRoot.className = "mt-4 rounded-2xl border border-red-100 bg-red-50 p-3 text-xs leading-5 text-red-700";
+-      resultRoot.textContent = `Migration stopped safely: ${friendlyError(error)} No starter entries were replaced. Retry after checking the connection.`;
++      resultRoot.textContent = `Process stopped safely: ${friendlyError(error)} Retry after checking the selected local folder and Drive connection.`;
+     }
+     toast(friendlyError(error), "error");
+   } finally {
+@@ -801,9 +991,13 @@
+ }
+ 
+ async function deleteUploadedMedia(media) {
+-  const driveFileId = typeof media === "string" ? media : media?.driveFileId;
+-  if (!driveFileId) return;
+-  await deleteGoogleDriveFile(driveFileId);
++  if (typeof media === "string") {
++    if (media) await deleteGoogleDriveFile(media);
++    return;
++  }
++  const ids = [media?.driveFileId, media?.thumbnailDriveFileId].filter(Boolean);
++  if (!ids.length) return;
++  await Promise.allSettled(ids.map((fileId) => deleteGoogleDriveFile(fileId)));
+ }
+ 
+ function legacyMediaUrl(media) {
+@@ -821,11 +1015,13 @@
+ 
+ function mediaVideoHTML(media, className, extraAttributes = "") {
+   const driveFileId = String(media?.driveFileId || "").trim();
++  const thumbnailDriveFileId = String(media?.thumbnailDriveFileId || "").trim();
+   const url = legacyMediaUrl(media);
+   const source = driveFileId
+     ? `data-drive-file-id="${escapeHTML(driveFileId)}"`
+     : `src="${escapeHTML(url)}"`;
+-  return `<video class="${className} ${driveFileId ? "drive-media-pending" : ""}" ${source} ${extraAttributes}></video>`;
++  const poster = thumbnailDriveFileId ? `data-drive-poster-file-id="${escapeHTML(thumbnailDriveFileId)}"` : "";
++  return `<video class="${className} ${driveFileId ? "drive-media-pending" : ""}" ${source} ${poster} ${extraAttributes}></video>`;
+ }
+ 
+ function hydrateMedia(root = document, interactive = false) {
+@@ -2099,7 +2295,9 @@
+     <button class="block w-full text-left" data-gallery-action="view" data-gallery-id="${escapeHTML(item.id)}" type="button">
+       <div class="gallery-media relative overflow-hidden">
+         ${isVideo
+-          ? `<div class="flex h-full w-full flex-col items-center justify-center bg-gradient-to-br from-rosewood-950 via-rosewood-800 to-rosewood-600 text-white"><span class="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/15 text-xl ring-1 ring-white/20">▶</span><span class="mt-2 max-w-[80%] truncate text-[10px] font-bold text-rosewood-100">${escapeHTML(item.filename)}</span></div><span class="absolute left-2 top-2 rounded-full bg-rosewood-950/75 px-2 py-1 text-[9px] font-bold text-white backdrop-blur">VIDEO</span>`
++          ? item.thumbnailDriveFileId
++            ? `${mediaImageHTML({ driveFileId: item.thumbnailDriveFileId }, "h-full w-full object-cover", `${item.title || item.filename} video thumbnail`, 'loading="lazy" decoding="async" onerror="this.classList.add('hidden');this.nextElementSibling.classList.remove('hidden');this.nextElementSibling.classList.add('flex')"')}<div class="media-fallback hidden h-full w-full flex-col items-center justify-center bg-gradient-to-br from-rosewood-950 via-rosewood-800 to-rosewood-600 text-white"><span class="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/15 text-xl ring-1 ring-white/20">▶</span><span class="mt-2 max-w-[80%] truncate text-[10px] font-bold text-rosewood-100">${escapeHTML(item.filename)}</span></div><span class="absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-transparent"></span><span class="absolute left-1/2 top-1/2 flex h-12 w-12 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-rosewood-950/75 pl-0.5 text-lg text-white shadow-lg ring-1 ring-white/30 backdrop-blur">▶</span><span class="absolute left-2 top-2 rounded-full bg-rosewood-950/75 px-2 py-1 text-[9px] font-bold text-white backdrop-blur">VIDEO</span>`
++            : `<div class="flex h-full w-full flex-col items-center justify-center bg-gradient-to-br from-rosewood-950 via-rosewood-800 to-rosewood-600 text-white"><span class="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/15 text-xl ring-1 ring-white/20">▶</span><span class="mt-2 max-w-[80%] truncate text-[10px] font-bold text-rosewood-100">${escapeHTML(item.filename)}</span><span class="mt-1 text-[9px] text-rosewood-200">Thumbnail pending</span></div><span class="absolute left-2 top-2 rounded-full bg-rosewood-950/75 px-2 py-1 text-[9px] font-bold text-white backdrop-blur">VIDEO</span>`
+           : item.driveFileId
+             ? `${mediaImageHTML(item, "h-full w-full object-cover", item.title || album, 'loading="lazy" decoding="async"')}<div class="media-fallback hidden h-full w-full items-center justify-center text-center text-2xl text-rosewood-700">♡</div>`
+             : `<img class="h-full w-full object-cover" src="${escapeHTML(path)}" alt="${escapeHTML(item.title || album)}" loading="lazy" decoding="async" onerror="this.classList.add('hidden');this.nextElementSibling.classList.remove('hidden');this.nextElementSibling.classList.add('flex')" /><div class="media-fallback hidden h-full w-full items-center justify-center text-center text-2xl text-rosewood-700">♡</div>`}
+@@ -2282,14 +2480,28 @@
+     } else if (existing) {
+       const file = selected[0]?.file || null;
+       let uploaded = null;
++      let thumbnail = null;
+       if (file) {
+         const albumFolder = usesTogetherPeriod ? `${album}/${usTogetherFolderName(month, year)}` : album;
+         const path = `couples/${state.coupleId}/gallery/${type === "video" ? "videos" : "photos"}/${albumFolder}/${id}-${randomId("media")}-${safeFileName(file.name)}`;
+         uploaded = await uploadFileToDrive(file, path, (percent) => {
+-          progress.set(0, percent);
++          progress.set(0, type === "video" ? Math.round(percent * 0.88) : percent);
+           updateProgress();
+         }, "gallery");
+         uploadedFiles.push(uploaded);
++        if (type === "video") {
++          thumbnail = await uploadVideoThumbnailToDrive(file, {
++            itemId: id,
++            album,
++            onProgress: (percent) => {
++              progress.set(0, 88 + Math.round(percent * 0.12));
++              updateProgress();
++            }
++          });
++          if (thumbnail?.driveFileId) uploadedFiles.push(thumbnail);
++        }
++        progress.set(0, 100);
++        updateProgress();
+       }
+       const filename = file?.name || existing.filename || $("galleryFilename").value.trim();
+       const storageData = uploaded ? {
+@@ -2298,14 +2510,16 @@
+         storageUrl: "",
+         storagePath: uploaded.path,
+         fileSize: uploaded.size,
+-        contentType: uploaded.type
++        contentType: uploaded.type,
++        ...(type === "video" ? videoThumbnailStorageData(thumbnail) : {})
+       } : {
+         driveFileId: existing.driveFileId || "",
+         driveWebViewLink: existing.driveWebViewLink || "",
+         storageUrl: existing.storageUrl || "",
+         storagePath: existing.storagePath || "",
+         fileSize: Number(existing.fileSize || 0),
+-        contentType: existing.contentType || ""
++        contentType: existing.contentType || "",
++        ...(type === "video" ? videoThumbnailStorageData(null, existing) : {})
+       };
+       await set(ref(db, `couples/${state.coupleId}/gallery/${id}`), {
+         type, album, filename, title, date, description, ...periodData, ...storageData,
+@@ -2317,22 +2531,38 @@
+       if (uploaded && existing.driveFileId && existing.driveFileId !== uploaded.driveFileId) await deleteUploadedMedia(existing);
+     } else {
+       const albumFolder = usesTogetherPeriod ? `${album}/${usTogetherFolderName(month, year)}` : album;
++      let completedUploads = 0;
+       const uploadResults = await runWithConcurrency(selected, type === "video" ? 2 : 4, async ({ file }, index) => {
+         const itemId = push(ref(db, `couples/${state.coupleId}/gallery`)).key;
+         progress.set(index, 1);
+         updateProgress();
+         const path = `couples/${state.coupleId}/gallery/${type === "video" ? "videos" : "photos"}/${albumFolder}/${itemId}-${randomId("media")}-${safeFileName(file.name)}`;
+         const uploaded = await uploadFileToDrive(file, path, (percent) => {
+-          progress.set(index, percent);
++          progress.set(index, type === "video" ? Math.round(percent * 0.88) : percent);
+           updateProgress();
+         }, "gallery");
+         uploadedFiles.push(uploaded);
+-        setButtonLoading(button, true, `Uploading ${uploadedFiles.length}/${selected.length}`);
+-        return { itemId, file, uploaded, index };
++        let thumbnail = null;
++        if (type === "video") {
++          thumbnail = await uploadVideoThumbnailToDrive(file, {
++            itemId,
++            album,
++            onProgress: (percent) => {
++              progress.set(index, 88 + Math.round(percent * 0.12));
++              updateProgress();
++            }
++          });
++          if (thumbnail?.driveFileId) uploadedFiles.push(thumbnail);
++        }
++        progress.set(index, 100);
++        completedUploads += 1;
++        updateProgress();
++        setButtonLoading(button, true, `Uploading ${completedUploads}/${selected.length}`);
++        return { itemId, file, uploaded, thumbnail, index };
+       });
+ 
+       const batchUpdates = {};
+-      for (const { itemId, file, uploaded, index } of uploadResults) {
++      for (const { itemId, file, uploaded, thumbnail, index } of uploadResults) {
+         batchUpdates[itemId] = {
+           type, album,
+           filename: file.name,
+@@ -2344,6 +2574,7 @@
+           storagePath: uploaded.path,
+           fileSize: uploaded.size,
+           contentType: uploaded.type,
++          ...(type === "video" ? videoThumbnailStorageData(thumbnail) : {}),
+           authorId: state.user.uid,
+           authorName: state.profile?.displayName || currentMember()?.displayName || "My love",
+           createdAt: serverTimestamp(),
+@@ -2358,7 +2589,7 @@
+     closeModal("galleryItemModal");
+     toast(existing?.isStarter ? "Starter media updated." : existing ? "Gallery item updated." : `${selected.length} media item${selected.length === 1 ? "" : "s"} added.`);
+   } catch (error) {
+-    await Promise.allSettled(uploadedFiles.filter((file) => file?.driveFileId).map(deleteUploadedMedia));
++    await Promise.allSettled(uploadedFiles.filter((file) => file?.driveFileId).map((file) => deleteGoogleDriveFile(file.driveFileId)));
+     console.error("Gallery batch upload failed", error);
+     toast(friendlyError(error), "error");
+   } finally {

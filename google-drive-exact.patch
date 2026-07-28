@@ -1,0 +1,23 @@
+--- /mnt/data/latestbase/pink-promise-mobile-performance-upgrade/google-drive.js	2026-07-27 08:52:30.000000000 +0000
++++ /mnt/data/pink-promise-video-thumbnail-patch/google-drive.js	2026-07-28 03:03:32.762033571 +0000
+@@ -582,14 +582,19 @@
+ 
+ async function hydrateDriveNode(node, interactive) {
+   const fileId = node?.dataset?.driveFileId;
++  const posterFileId = node?.dataset?.drivePosterFileId;
+   if (!fileId || node.dataset.driveState === "ready" || node.dataset.driveState === "loading") return;
+   node.dataset.driveState = "loading";
+   node.classList.add("drive-media-pending");
+   try {
+-    const url = await getGoogleDriveObjectUrl(fileId, { interactive });
++    const [url, posterUrl] = await Promise.all([
++      getGoogleDriveObjectUrl(fileId, { interactive }),
++      posterFileId ? getGoogleDriveObjectUrl(posterFileId, { interactive }).catch(() => "") : Promise.resolve("")
++    ]);
+     if (!node.isConnected) return;
+     node.src = url;
+     if (node.tagName === "VIDEO") {
++      if (posterUrl) node.poster = posterUrl;
+       node.preload = node.preload || "metadata";
+       node.load();
+     }

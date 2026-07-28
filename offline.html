@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#bd3f78" />
+  <title>Pink Promise — Offline</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 20px; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #3d1427; background: radial-gradient(circle at 20% 10%, #ffc6dc 0, transparent 32%), linear-gradient(145deg, #fff5fa, #ffffff 52%, #ffe2ee); }
+    main { width: min(100%, 430px); padding: 28px; text-align: center; border: 1px solid rgba(151,51,95,.14); border-radius: 28px; background: rgba(255,255,255,.9); box-shadow: 0 24px 60px rgba(112,48,78,.14); }
+    .icon { display: grid; place-items: center; width: 72px; height: 72px; margin: 0 auto; border-radius: 24px; color: white; font-size: 34px; background: linear-gradient(145deg, #e873a0, #97335f); }
+    h1 { margin: 18px 0 8px; font-size: 28px; }
+    p { margin: 0; color: #806c75; line-height: 1.65; }
+    button { margin-top: 20px; width: 100%; border: 0; border-radius: 14px; padding: 13px 16px; color: white; background: #97335f; font-weight: 750; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="icon" aria-hidden="true">♥</div>
+    <h1>You’re offline</h1>
+    <p>Pink Promise needs an internet connection for Firebase sync, live chat, and private Google Drive media. Reconnect, then try again.</p>
+    <button type="button" onclick="location.reload()">Try again</button>
+  </main>
+</body>
+</html>

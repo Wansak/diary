@@ -1,0 +1,1191 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#97335f" />
+  <meta name="description" content="Pink Promise — a private realtime diary made for two." />
+  <title>Pink Promise — Realtime Couple Diary</title>
+
+  <link rel="manifest" href="./manifest.webmanifest" />
+  <link rel="icon" type="image/svg+xml" href="./icons/favicon.svg" />
+  <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png" />
+  <meta name="application-name" content="Pink Promise" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="Pink Promise" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="screen-orientation" content="portrait" />
+  <meta name="x5-orientation" content="portrait" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="preconnect" href="https://www.googleapis.com" />
+  <link rel="preconnect" href="https://accounts.google.com" />
+  <link rel="modulepreload" href="./app.js" />
+  <link rel="modulepreload" href="./google-drive.js" />
+  <link rel="modulepreload" href="./firebase-config.js" />
+  <link rel="modulepreload" href="./google-drive-config.js" />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+
+  <style type="text/tailwindcss">
+    @theme {
+      --font-sans: "DM Sans", ui-sans-serif, system-ui, sans-serif;
+      --font-display: "Playfair Display", Georgia, serif;
+      --color-rosewood-50: #fff5fa;
+      --color-rosewood-100: #ffe2ee;
+      --color-rosewood-200: #ffc6dc;
+      --color-rosewood-300: #f59bbb;
+      --color-rosewood-400: #e873a0;
+      --color-rosewood-500: #d65388;
+      --color-rosewood-600: #bd3f78;
+      --color-rosewood-700: #97335f;
+      --color-rosewood-800: #7c2d50;
+      --color-rosewood-900: #64253f;
+      --color-rosewood-950: #3d1427;
+    }
+      .drive-media-pending { background: linear-gradient(135deg, rgba(245, 223, 233, .85), rgba(255, 255, 255, .45)); animation: drivePulse 1.4s ease-in-out infinite alternate; }
+    img.drive-media-pending:not([src]), video.drive-media-pending:not([src]) { color: transparent; }
+    @keyframes drivePulse { from { opacity: .55; } to { opacity: .9; } }
+  </style>
+
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #35252d;
+      --muted: #806c75;
+      --line: rgba(135, 59, 92, 0.12);
+      --surface: rgba(255, 255, 255, 0.84);
+      --surface-solid: #ffffff;
+      --shadow: 0 20px 55px rgba(112, 48, 78, 0.12);
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 10% 10%, rgba(239, 181, 202, .33), transparent 30%),
+        radial-gradient(circle at 88% 18%, rgba(201, 99, 136, .14), transparent 28%),
+        linear-gradient(145deg, #fffafb 0%, #fff 45%, #fdf4f7 100%);
+      font-family: "DM Sans", sans-serif;
+    }
+
+    button, input, textarea, select { font: inherit; }
+    button { -webkit-tap-highlight-color: transparent; }
+    ::selection { background: #efb5ca; color: #381522; }
+
+    .glass {
+      background: var(--surface);
+      border: 1px solid rgba(255, 255, 255, .72);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+    }
+
+    .soft-card {
+      background: rgba(255, 255, 255, .88);
+      border: 1px solid var(--line);
+      box-shadow: 0 12px 35px rgba(113, 52, 79, .07);
+    }
+
+    .nav-item.active,
+    #mobileMoreBtn.active {
+      color: #873b5c;
+      background: linear-gradient(135deg, #fdeef4, #fff8fb);
+      box-shadow: inset 0 0 0 1px rgba(169, 74, 112, .08);
+    }
+
+    .view-section { display: none; }
+    .view-section.active { display: block; animation: fadeUp .24s ease both; }
+    .modal-shell { animation: fadeIn .18s ease both; }
+    .modal-card { animation: modalUp .22s ease both; }
+
+    .entry-card {
+      transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease;
+    }
+    .entry-card:hover {
+      transform: translateY(-2px);
+      border-color: rgba(169, 74, 112, .22);
+      box-shadow: 0 18px 45px rgba(113, 52, 79, .11);
+    }
+
+    .mood-btn.active {
+      border-color: #c96388;
+      background: #fdeef4;
+      box-shadow: 0 8px 22px rgba(169, 74, 112, .14);
+      transform: translateY(-1px);
+    }
+
+    .gallery-tab.active,
+    .gallery-chip.active {
+      color: #873b5c;
+      border-color: rgba(169, 74, 112, .24);
+      background: #fdeef4;
+      box-shadow: inset 0 0 0 1px rgba(169, 74, 112, .05);
+    }
+
+    .gallery-media {
+      aspect-ratio: 1 / 1;
+      background: linear-gradient(145deg, #fff8fb, #fdeef4);
+    }
+
+    .gallery-card {
+      transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease;
+    }
+    .gallery-card:hover {
+      transform: translateY(-2px);
+      border-color: rgba(169, 74, 112, .22);
+      box-shadow: 0 18px 45px rgba(113, 52, 79, .11);
+    }
+
+    .calendar-day { min-height: 76px; }
+    .calendar-day.has-entry::after {
+      content: "";
+      width: 5px;
+      height: 5px;
+      border-radius: 999px;
+      background: #c96388;
+      position: absolute;
+      bottom: 7px;
+      left: 50%;
+      transform: translateX(-50%);
+    }
+
+    .scrollbar-thin { scrollbar-width: thin; scrollbar-color: #efb5ca transparent; }
+    .scrollbar-thin::-webkit-scrollbar { width: 6px; height: 6px; }
+    .scrollbar-thin::-webkit-scrollbar-thumb { background: #efb5ca; border-radius: 999px; }
+
+    .skeleton {
+      position: relative;
+      overflow: hidden;
+      background: #f8e8ef;
+    }
+    .skeleton::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      transform: translateX(-100%);
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,.75), transparent);
+      animation: shimmer 1.4s infinite;
+    }
+
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes fadeUp { from { opacity: 0; transform: translateY(7px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes modalUp { from { opacity: 0; transform: translateY(14px) scale(.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
+    @keyframes shimmer { 100% { transform: translateX(100%); } }
+
+    .pressable { transition: transform .16s ease, box-shadow .2s ease, background-color .2s ease; }
+    .pressable:active { transform: scale(.97); }
+    .message-bubble { animation: messageIn .24s cubic-bezier(.2,.8,.2,1) both; }
+    .folder-card { transition: transform .2s ease, border-color .2s ease, box-shadow .2s ease; }
+    .folder-card:hover { transform: translateY(-2px); box-shadow: 0 16px 36px rgba(113,52,79,.11); }
+    .memory-photo-deck { position: relative; min-height: 230px; cursor: pointer; perspective: 900px; }
+    .memory-photo-card { position: absolute; left: 50%; top: 50%; width: min(72%, 310px); aspect-ratio: 4/3; transform: translate(-50%,-50%) rotate(var(--deck-rotation)) translateX(var(--deck-offset)); transition: transform .48s cubic-bezier(.2,.85,.2,1), opacity .3s ease, box-shadow .3s ease; border: 5px solid white; border-radius: 1.1rem; overflow: hidden; box-shadow: 0 18px 36px rgba(56,21,34,.22); background: #fff; }
+    .memory-photo-deck.spread { min-height: 0; display: grid; grid-template-columns: repeat(auto-fit,minmax(125px,1fr)); gap: .75rem; perspective: none; }
+    .memory-photo-deck.spread .memory-photo-card { position: relative; left: auto; top: auto; width: 100%; transform: none; aspect-ratio: 1/1; border-width: 3px; }
+    .upload-preview-card { animation: fadeUp .22s ease both; }
+    .chat-scroll { scroll-behavior: smooth; }
+    .entertainment-orb { animation: floatOrb 4s ease-in-out infinite; }
+    .theme-transition, .theme-transition * { transition: background-color .25s ease, color .25s ease, border-color .25s ease, box-shadow .25s ease; }
+
+    html.dark {
+      color-scheme: dark;
+      --ink: #f8edf2;
+      --muted: #cdb7c1;
+      --line: rgba(249,217,229,.12);
+      --surface: rgba(39,22,30,.88);
+      --surface-solid: #291720;
+      --shadow: 0 20px 60px rgba(0,0,0,.34);
+    }
+    html.dark body {
+      background:
+        radial-gradient(circle at 12% 8%, rgba(169,74,112,.20), transparent 30%),
+        radial-gradient(circle at 90% 16%, rgba(201,99,136,.12), transparent 28%),
+        linear-gradient(145deg, #160d12 0%, #21131a 52%, #120b0f 100%);
+    }
+    html.dark .glass, html.dark .soft-card { background: rgba(41,23,32,.9); border-color: rgba(249,217,229,.11); }
+    html.dark [class*="bg-white"] { background-color: rgba(48,29,38,.94) !important; }
+    html.dark [class*="bg-slate-50"] { background-color: rgba(255,255,255,.055) !important; }
+    html.dark [class*="bg-rosewood-50"] { background-color: rgba(201,99,136,.10) !important; }
+    html.dark [class*="bg-rosewood-100"] { background-color: rgba(201,99,136,.16) !important; }
+    html.dark [class*="text-slate-4"] { color: #a9909c !important; }
+    html.dark [class*="text-slate-5"] { color: #c4adb8 !important; }
+    html.dark [class*="text-slate-6"], html.dark [class*="text-slate-7"] { color: #e0ccd5 !important; }
+    html.dark [class*="text-rosewood-9"], html.dark [class*="text-rosewood-8"] { color: #f7dce7 !important; }
+    html.dark [class*="border-rosewood-1"], html.dark [class*="ring-rosewood-1"] { border-color: rgba(249,217,229,.12) !important; }
+    html.dark input, html.dark textarea, html.dark select { color: #f8edf2; background: #321f28 !important; border-color: rgba(249,217,229,.13) !important; }
+    html.dark input::placeholder, html.dark textarea::placeholder { color: #9e8490; }
+    html.dark .nav-item.active, html.dark .gallery-tab.active, html.dark .gallery-chip.active { background: rgba(201,99,136,.17); color: #f9d9e5; }
+    html.dark .memory-photo-card { border-color: #3a2430; background: #3a2430; }
+    html.dark video, html.dark img { color-scheme: dark; }
+
+    @keyframes messageIn { from { opacity: 0; transform: translateY(8px) scale(.985); } to { opacity: 1; transform: none; } }
+    @keyframes floatOrb { 0%,100% { transform: translateY(0) rotate(-3deg); } 50% { transform: translateY(-8px) rotate(3deg); } }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
+    }
+
+    @media (max-width: 767px) {
+      body { padding-bottom: 74px; }
+      .calendar-day { min-height: 58px; }
+      .memory-photo-deck { min-height: 190px; }
+    }
+  
+
+    /* Final responsive polish */
+    :root { --modal-gutter: clamp(.45rem, 2vw, 1.25rem); --visual-viewport-height: 100dvh; }
+    body { overflow-x: hidden; }
+    img, video, canvas, svg { max-width: 100%; }
+    input, textarea, select, button { min-width: 0; }
+    .view-section { min-width: 0; }
+    .view-section.active { animation: fadeUp .2s ease both; }
+    .soft-card, .glass { border-color: rgba(189, 63, 120, .12); }
+    .view-section .soft-card.p-5, .view-section .soft-card.p-6 { padding: 1rem !important; }
+    .view-section .soft-card.rounded-3xl { border-radius: 1.35rem; }
+    .view-section > .mt-4 { margin-top: .8rem !important; }
+    .modal-shell { align-items: center !important; justify-content: center !important; overflow: hidden; padding: var(--modal-gutter) !important; }
+    .modal-card { margin: auto; max-height: calc(var(--visual-viewport-height) - (var(--modal-gutter) * 2)); overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; }
+    .modal-card > form, .modal-card > [id$="Content"] { min-width: 0; }
+    .memory-photo-deck { width: 100%; max-height: min(52dvh, 520px); }
+    .memory-photo-deck.spread { max-height: min(54dvh, 540px); overflow-y: auto; overscroll-behavior: contain; padding: .35rem; scrollbar-width: thin; }
+    .memory-photo-deck.spread .memory-photo-card { min-width: 0; }
+    #galleryViewerMedia { max-height: min(64dvh, 680px); min-height: 0; }
+    #galleryViewerMedia img, #galleryViewerMedia video { max-height: min(61dvh, 650px) !important; }
+    .gallery-card > button:first-child .p-3 { min-height: 3.45rem; }
+    .gallery-card-actions { opacity: 0; transform: translateY(-3px); transition: opacity .18s ease, transform .18s ease; }
+    .gallery-card:hover .gallery-card-actions, .gallery-card:focus-within .gallery-card-actions { opacity: 1; transform: none; }
+    #view-messages.active { height: calc(var(--visual-viewport-height) - 118px); min-height: 0; overflow: hidden; }
+    .chat-panel { display: flex; height: 100%; min-height: 0; flex-direction: column; }
+    .chat-header, .chat-composer { flex: 0 0 auto; }
+    #chatMessages { min-height: 0; flex: 1 1 auto; }
+    .message-bubble > div { min-width: 0; }
+    .message-bubble p { overflow-wrap: anywhere; }
+    .chat-composer textarea { field-sizing: content; }
+    #toastContainer { max-height: calc(var(--visual-viewport-height) - 1rem); overflow-y: auto; }
+    .nav-item, #mobileMoreBtn { touch-action: manipulation; }
+    @media (hover: none) { .gallery-card-actions { opacity: 1; transform: none; } }
+
+    @media (max-width: 767px) {
+      body { padding-bottom: calc(72px + env(safe-area-inset-bottom)); }
+      header { padding-top: max(.65rem, env(safe-area-inset-top)); }
+      #mobileNav { bottom: max(.5rem, env(safe-area-inset-bottom)); }
+      #view-messages.active { height: calc(var(--visual-viewport-height) - 144px - env(safe-area-inset-bottom)); }
+      .chat-header { padding: .8rem !important; }
+      .chat-header h2 { font-size: 1.2rem !important; }
+      .chat-header p:last-child { max-width: 225px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      #chatMessages { padding: .7rem !important; }
+      .chat-composer { padding: .55rem !important; }
+      #chatForm { gap: .4rem; }
+      #chatInput { min-height: 2.5rem; padding: .65rem .75rem; }
+      #sendChatBtn { height: 2.5rem; padding-inline: .8rem; }
+      #chatForm label { width: 2.5rem; height: 2.5rem; }
+      .message-bubble > div { max-width: 89% !important; }
+      .modal-card { max-height: calc(var(--visual-viewport-height) - .8rem); border-radius: 1.25rem !important; }
+      .modal-card [class*="sticky top-0"] { padding-block: .65rem !important; }
+      .memory-photo-deck { min-height: 160px; max-height: 44dvh; }
+      .memory-photo-deck.spread { grid-template-columns: repeat(2, minmax(0, 1fr)); max-height: 48dvh; }
+      #galleryViewerMedia { max-height: 52dvh; }
+      #galleryViewerMedia img, #galleryViewerMedia video { max-height: 49dvh !important; }
+      .gallery-card-actions { opacity: 1; transform: none; }
+      .calendar-day { padding: .38rem !important; }
+      #toastContainer { left: .65rem; right: .65rem; top: max(.65rem, env(safe-area-inset-top)); width: auto; }
+    }
+
+    @media (max-width: 430px) {
+      main > header { padding-inline: .65rem !important; }
+      main > div { padding-inline: .65rem !important; }
+      .soft-card { border-radius: 1.2rem !important; }
+      .view-section { font-size: .97rem; }
+      #moodPicker { gap: .35rem; }
+      .mood-btn { border-radius: .85rem !important; padding-block: .55rem !important; }
+      #galleryGrid { gap: .55rem; }
+      #galleryPagination { padding: .55rem; }
+      #galleryPagination button { padding-inline: .65rem; }
+    }
+
+    @media (max-height: 560px) and (orientation: landscape) {
+      #view-messages.active { height: calc(var(--visual-viewport-height) - 96px); }
+      .chat-header { padding-block: .45rem !important; }
+      .chat-header p:first-child, .chat-header p:last-child { display: none; }
+      .modal-card { max-height: calc(var(--visual-viewport-height) - .5rem); }
+      .memory-photo-deck, .memory-photo-deck.spread { max-height: 45dvh; }
+    }
+
+    /* Smart installed-app behavior */
+    body.chat-mode {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: var(--visual-viewport-height);
+      min-height: 0;
+      overflow: hidden !important;
+      overscroll-behavior: none;
+      padding-bottom: 0 !important;
+    }
+    body.chat-mode #appShell {
+      height: var(--visual-viewport-height);
+      min-height: 0;
+      overflow: hidden;
+    }
+    body.chat-mode main {
+      display: flex;
+      height: 100%;
+      min-height: 0;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    body.chat-mode main > header { flex: 0 0 auto; }
+    body.chat-mode main > div {
+      display: flex;
+      min-height: 0;
+      flex: 1 1 auto;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    body.chat-mode #view-messages.active {
+      min-height: 0;
+      flex: 1 1 auto;
+      overflow: hidden;
+    }
+    #chatScrollBottomBtn {
+      right: .75rem;
+      bottom: calc(var(--chat-footer-height, 5rem) + .7rem);
+    }
+    #chatScrollBottomBtn:not(.hidden) { display: flex; }
+    #chatMessages {
+      overscroll-behavior: contain;
+      -webkit-overflow-scrolling: touch;
+      touch-action: pan-y;
+      scrollbar-gutter: stable;
+      overflow-anchor: none;
+    }
+    .chat-composer { position: relative; z-index: 2; padding-bottom: max(.65rem, env(safe-area-inset-bottom)); }
+    body.chat-mode header, body.chat-mode .chat-composer { overscroll-behavior: none; }
+    #smartRepliesPanel {
+      animation: smartReplyIn .2s ease both;
+      transition: opacity .18s ease, transform .18s ease;
+    }
+    .drive-mini-spinner {
+      width: .7rem;
+      height: .7rem;
+      border: 2px solid rgba(189,63,120,.22);
+      border-top-color: #bd3f78;
+      border-radius: 999px;
+      animation: loaderSpin .7s linear infinite;
+    }
+    #appLoadingScreen {
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+      background:
+        radial-gradient(circle at 28% 18%, rgba(255,255,255,.72), transparent 26%),
+        radial-gradient(circle at 76% 78%, rgba(255,198,220,.48), transparent 30%),
+        linear-gradient(145deg, #fff7fb, #ffe8f1 55%, #ffd7e6);
+      transition: opacity .18s ease, visibility .18s ease;
+    }
+    #appLoadingScreen.hidden { display: none !important; }
+    #appLoadingScreen.loader-leaving { opacity: 0; visibility: hidden; }
+    .promise-loader-orbit {
+      position: relative;
+      width: 96px;
+      height: 96px;
+    }
+    .promise-loader-heart {
+      position: absolute;
+      inset: 18px;
+      display: grid;
+      place-items: center;
+      border-radius: 30px;
+      background: linear-gradient(145deg, #c8487f, #94325f);
+      color: white;
+      font-size: 2rem;
+      box-shadow: 0 22px 50px rgba(151,51,95,.28);
+      animation: loaderHeartbeat 1.45s ease-in-out infinite;
+    }
+    .promise-loader-ring {
+      position: absolute;
+      inset: 0;
+      border: 2px solid rgba(189,63,120,.16);
+      border-top-color: #bd3f78;
+      border-right-color: #e873a0;
+      border-radius: 999px;
+      animation: loaderSpin 1.15s linear infinite;
+    }
+    .promise-loader-dot {
+      position: absolute;
+      width: 11px;
+      height: 11px;
+      border-radius: 999px;
+      background: #fff;
+      box-shadow: 0 5px 16px rgba(151,51,95,.2);
+      animation: loaderFloat 1.8s ease-in-out infinite;
+    }
+    .promise-loader-dot.one { left: 2px; top: 42px; }
+    .promise-loader-dot.two { right: 7px; top: 13px; animation-delay: -.55s; }
+    .promise-loader-dot.three { right: 15px; bottom: 4px; animation-delay: -1s; }
+    @keyframes loaderSpin { to { transform: rotate(360deg); } }
+    @keyframes loaderHeartbeat { 0%,100% { transform: scale(.96); } 50% { transform: scale(1.04); } }
+    @keyframes loaderFloat { 0%,100% { transform: translateY(0); opacity: .65; } 50% { transform: translateY(-7px); opacity: 1; } }
+    @keyframes smartReplyIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+
+    @media (max-width: 767px) {
+      body.chat-mode #mobileNav { display: grid !important; }
+      #smartRepliesPanel { margin-bottom: .35rem; }
+    }
+
+    /* Mobile performance and portrait-app patch */
+    html:not(.dark) { color-scheme: light; }
+    html:not(.dark) body, html:not(.dark) .modal-card { color: #35252d; }
+    html:not(.dark) .text-slate-400 { color: #8f7b84 !important; }
+    html:not(.dark) .text-slate-500 { color: #75626b !important; }
+    html:not(.dark) .text-slate-600, html:not(.dark) .text-slate-700 { color: #57464f !important; }
+    html:not(.dark) .text-rosewood-800 { color: #7c2d50 !important; }
+    html:not(.dark) .text-rosewood-900, html:not(.dark) .text-rosewood-950 { color: #4d1d34 !important; }
+
+    html.dark .text-slate-400 { color: #bda8b2 !important; }
+    html.dark .text-slate-500 { color: #d1bdc6 !important; }
+    html.dark .text-slate-600, html.dark .text-slate-700 { color: #eadbe1 !important; }
+    html.dark .text-rosewood-600 { color: #f2a9c5 !important; }
+    html.dark .text-rosewood-700, html.dark .text-rosewood-800 { color: #f7c6d9 !important; }
+    html.dark .text-rosewood-900, html.dark .text-rosewood-950 { color: #fff1f6 !important; }
+    html.dark .text-amber-700, html.dark .text-amber-800 { color: #fcd38d !important; }
+    html.dark .text-emerald-700, html.dark .text-emerald-800 { color: #9ee6bd !important; }
+    html.dark .text-red-600, html.dark .text-red-700 { color: #ffadb7 !important; }
+    html.dark [class*="bg-amber-50"], html.dark [class*="bg-amber-100"] { background-color: rgba(245,158,11,.13) !important; }
+    html.dark [class*="bg-emerald-50"], html.dark [class*="bg-emerald-100"] { background-color: rgba(16,185,129,.13) !important; }
+    html.dark [class*="bg-red-50"], html.dark [class*="bg-red-100"] { background-color: rgba(239,68,68,.13) !important; }
+    html.dark #appLoadingScreen { background: radial-gradient(circle at 25% 18%, rgba(201,99,136,.22), transparent 28%), linear-gradient(145deg, #160d12, #2a1721 58%, #120b0f) !important; }
+    html.dark #appLoadingScreen .bg-white\/70 { background-color: rgba(255,255,255,.12) !important; }
+    html.dark .chat-header, html.dark .chat-composer { background: rgba(43, 24, 34, .97) !important; }
+    html.dark #chatMessages { background: linear-gradient(180deg, rgba(82, 40, 58, .20), rgba(29, 16, 23, .96)) !important; }
+    html.dark .message-bubble [class*="bg-white"] { background-color: #3c2530 !important; }
+    html.dark #mobileNav { background: rgba(43, 24, 34, .97) !important; }
+
+    #portraitOrientationGuard { display: none; }
+    #chatBackBtn { display: none; }
+    body.chat-mode #mobileNav { display: none !important; }
+    body.chat-mode .chat-composer { padding-bottom: max(.65rem, env(safe-area-inset-bottom)) !important; }
+
+    .gallery-bulk-preview { display: grid; grid-template-columns: repeat(auto-fill, minmax(74px, 1fr)); gap: .5rem; max-height: 230px; overflow-y: auto; overscroll-behavior: contain; }
+    .gallery-bulk-preview-item { position: relative; aspect-ratio: 1; overflow: hidden; border-radius: .8rem; border: 1px solid rgba(189,63,120,.15); background: rgba(255,255,255,.72); }
+    .gallery-bulk-preview-item img, .gallery-bulk-preview-item video { width: 100%; height: 100%; object-fit: cover; }
+    .gallery-bulk-preview-item span { position: absolute; inset-inline: .25rem; bottom: .25rem; overflow: hidden; border-radius: .35rem; background: rgba(61,20,39,.72); padding: .16rem .3rem; color: white; font-size: 8px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+
+    @media (max-width: 767px) {
+      body.chat-mode main > header { display: none; }
+      body.chat-mode main > div { padding: 0 !important; max-width: none !important; width: 100%; }
+      body.chat-mode #view-messages.active { height: var(--visual-viewport-height) !important; border-radius: 0; }
+      body.chat-mode .chat-panel { border-radius: 0 !important; border-inline: 0; border-bottom: 0; }
+      #chatBackBtn { display: flex; }
+      .chat-header { min-height: 64px; padding-top: max(.65rem, env(safe-area-inset-top)) !important; }
+      .chat-composer { position: relative; z-index: 20; }
+      #chatInput { font-size: 16px; }
+    }
+
+    @media (orientation: landscape) and (pointer: coarse) and (max-width: 1024px) {
+      html.portrait-lock-fallback #portraitOrientationGuard { display: flex; }
+    }
+
+</style>
+</head>
+<body class="antialiased">
+  <noscript>
+    <div class="m-4 rounded-2xl bg-red-50 p-4 text-sm text-red-700">JavaScript is required to use Pink Promise.</div>
+  </noscript>
+
+  <!-- Creative app loading screen -->
+  <div id="appLoadingScreen" class="fixed inset-0 z-[100] flex items-center justify-center p-6" role="status" aria-live="polite" aria-hidden="false">
+    <div class="text-center">
+      <div class="promise-loader-orbit mx-auto" aria-hidden="true">
+        <div class="promise-loader-ring"></div>
+        <div class="promise-loader-heart">♥</div>
+        <span class="promise-loader-dot one"></span><span class="promise-loader-dot two"></span><span class="promise-loader-dot three"></span>
+      </div>
+      <p class="mt-5 text-[10px] font-bold uppercase tracking-[.28em] text-rosewood-600">Pink Promise</p>
+      <h1 id="appLoadingTitle" class="mt-2 font-display text-2xl font-bold text-rosewood-950">Opening Pink Promise</h1>
+      <p id="appLoadingMessage" class="mx-auto mt-2 max-w-xs text-sm leading-6 text-slate-600">Preparing your shared space…</p>
+      <div class="mx-auto mt-5 h-1.5 w-36 overflow-hidden rounded-full bg-white/70 shadow-inner"><div class="h-full w-1/2 rounded-full bg-gradient-to-r from-rosewood-400 to-rosewood-700" style="animation: shimmer 1.2s ease-in-out infinite alternate"></div></div>
+    </div>
+  </div>
+
+  <div id="portraitOrientationGuard" class="fixed inset-0 z-[120] items-center justify-center bg-rosewood-950 p-6 text-center text-white" role="status" aria-live="polite">
+    <div class="max-w-xs">
+      <div class="mx-auto flex h-20 w-14 items-center justify-center rounded-2xl border-2 border-white/65 text-2xl shadow-2xl">↻</div>
+      <h2 class="mt-5 font-display text-2xl font-bold">Portrait mode only</h2>
+      <p class="mt-2 text-sm leading-6 text-rosewood-100">Rotate your device upright to continue using Pink Promise.</p>
+    </div>
+  </div>
+
+  <!-- Firebase setup notice -->
+  <section id="setupScreen" class="hidden min-h-screen items-center justify-center p-4">
+    <div class="glass w-full max-w-xl rounded-[2rem] p-6 sm:p-8">
+      <div class="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-rosewood-100 text-2xl">♥</div>
+      <p class="mb-2 text-xs font-bold uppercase tracking-[.22em] text-rosewood-600">One-time setup</p>
+      <h1 class="font-display text-3xl font-bold text-rosewood-950">Connect your Firebase project</h1>
+      <p class="mt-3 text-sm leading-6 text-slate-600">Open <code class="rounded bg-rosewood-50 px-1.5 py-0.5 text-rosewood-800">firebase-config.js</code>, paste your Firebase web configuration, enable Email/Password Authentication, and create a Realtime Database. Then configure Google Drive in <code class="rounded bg-rosewood-50 px-1.5 py-0.5 text-rosewood-800">google-drive-config.js</code> for device uploads.</p>
+      <div class="mt-5 rounded-2xl border border-rosewood-100 bg-white/70 p-4 text-sm text-slate-600">
+        Complete instructions are included in <strong>README.md</strong>. Publish <strong>database.rules.json</strong>, enable the Google Drive API, and configure the OAuth Client ID before testing uploads.
+      </div>
+    </div>
+  </section>
+
+  <!-- Authentication -->
+  <section id="authScreen" class="hidden min-h-screen items-center justify-center p-3 sm:p-6">
+    <div class="glass w-full max-w-lg rounded-[2rem] p-5 sm:p-8">
+      <div class="mx-auto w-full max-w-md">
+        <div class="flex items-center justify-between gap-3">
+          <div class="flex items-center gap-3">
+            <div class="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-rosewood-100 to-rosewood-200 text-xl text-rosewood-800 shadow-sm">♥</div>
+            <div><p class="font-display text-xl font-bold text-rosewood-950">Pink Promise</p><p class="text-[10px] font-bold uppercase tracking-[.16em] text-rosewood-500">A diary made for two</p></div>
+          </div>
+          <span class="rounded-full bg-rosewood-50 px-2.5 py-1 text-[9px] font-bold text-rosewood-700 ring-1 ring-rosewood-100">Private</span>
+        </div>
+
+        <div class="mt-6 rounded-3xl bg-gradient-to-br from-rosewood-800 via-rosewood-700 to-rosewood-600 p-5 text-white shadow-lg shadow-rosewood-200/70">
+          <p class="text-[10px] font-bold uppercase tracking-[.2em] text-rosewood-100">Keep the little moments close</p>
+          <h1 class="mt-2 font-display text-2xl font-bold leading-tight sm:text-3xl">Your shared story, in one beautiful space.</h1>
+          <p class="mt-2 text-xs leading-5 text-rosewood-50/90">Realtime diary, private gallery, live chat, and memories made for you and your partner.</p>
+        </div>
+
+        <div class="mt-6">
+          <p class="text-xs font-bold uppercase tracking-[.2em] text-rosewood-600">Welcome</p>
+          <h2 id="authHeading" class="mt-1 font-display text-2xl font-bold text-rosewood-950">Sign in to your space</h2>
+          <p id="authSubheading" class="mt-1 text-xs text-slate-500">Your memories are waiting for you.</p>
+        </div>
+
+        <div class="mt-5 grid grid-cols-2 rounded-xl bg-rosewood-50 p-1">
+          <button id="loginTab" class="auth-tab rounded-lg bg-white px-4 py-2.5 text-sm font-semibold text-rosewood-800 shadow-sm" type="button">Sign in</button>
+          <button id="registerTab" class="auth-tab rounded-lg px-4 py-2.5 text-sm font-semibold text-slate-500" type="button">Create account</button>
+        </div>
+
+        <form id="authForm" class="mt-5 space-y-3.5">
+          <div id="nameField" class="hidden">
+            <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500" for="displayName">Your name</label>
+            <input id="displayName" class="w-full rounded-xl border border-rosewood-100 bg-white px-4 py-3 text-sm outline-none transition focus:border-rosewood-400 focus:ring-4 focus:ring-rosewood-100" type="text" maxlength="40" autocomplete="name" placeholder="What should your partner call you?" />
+          </div>
+          <div>
+            <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500" for="email">Email address</label>
+            <input id="email" class="w-full rounded-xl border border-rosewood-100 bg-white px-4 py-3 text-sm outline-none transition focus:border-rosewood-400 focus:ring-4 focus:ring-rosewood-100" type="email" required autocomplete="email" placeholder="you@example.com" />
+          </div>
+          <div>
+            <div class="mb-1.5 flex items-center justify-between">
+              <label class="block text-xs font-bold uppercase tracking-wide text-slate-500" for="password">Password</label>
+              <button id="forgotPasswordBtn" class="text-xs font-semibold text-rosewood-600 hover:text-rosewood-800" type="button">Forgot password?</button>
+            </div>
+            <div class="relative">
+              <input id="password" class="w-full rounded-xl border border-rosewood-100 bg-white px-4 py-3 pr-12 text-sm outline-none transition focus:border-rosewood-400 focus:ring-4 focus:ring-rosewood-100" type="password" required minlength="6" autocomplete="current-password" placeholder="At least 6 characters" />
+              <button id="togglePasswordBtn" class="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg px-2 py-1 text-xs font-bold text-slate-400 hover:bg-rosewood-50 hover:text-rosewood-700" type="button">Show</button>
+            </div>
+          </div>
+          <button id="authSubmitBtn" class="flex w-full items-center justify-center gap-2 rounded-xl bg-rosewood-700 px-4 py-3 text-sm font-bold text-white shadow-lg shadow-rosewood-200 transition hover:bg-rosewood-800 disabled:cursor-not-allowed disabled:opacity-60" type="submit"><span>Sign in</span></button>
+          <p class="text-center text-[10px] leading-4 text-slate-400">Your login stays active securely on this device until you sign out.</p>
+        </form>
+        <p id="authMessage" class="mt-3 hidden rounded-xl border px-3 py-2.5 text-sm"></p>
+        <button id="authInstallAppBtn" class="mt-3 hidden w-full items-center justify-center gap-2 rounded-xl border border-rosewood-100 bg-white px-4 py-2.5 text-xs font-bold text-rosewood-700 hover:bg-rosewood-50" type="button">
+          <span aria-hidden="true">⇩</span><span>Install Pink Promise app</span>
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Pairing / onboarding -->
+  <section id="onboardingScreen" class="hidden min-h-screen items-center justify-center p-3 sm:p-6">
+    <div class="glass w-full max-w-4xl rounded-[2rem] p-5 sm:p-8">
+      <div class="flex items-center justify-between gap-4">
+        <div class="flex items-center gap-3">
+          <div class="flex h-11 w-11 items-center justify-center rounded-2xl bg-rosewood-100 text-rosewood-700">♥</div>
+          <div><p class="font-display text-lg font-bold text-rosewood-950">Pink Promise</p><p class="text-xs text-slate-500">Create your private shared space</p></div>
+        </div>
+        <button id="onboardingSignOutBtn" class="rounded-xl border border-rosewood-100 bg-white px-3 py-2 text-xs font-bold text-slate-600 hover:bg-rosewood-50" type="button">Sign out</button>
+      </div>
+
+      <div class="mt-7 text-center">
+        <p class="text-xs font-bold uppercase tracking-[.22em] text-rosewood-600">One last step</p>
+        <h1 class="mt-2 font-display text-3xl font-bold text-rosewood-950 sm:text-4xl">How will you begin?</h1>
+        <p class="mx-auto mt-3 max-w-xl text-sm leading-6 text-slate-500">Start a new diary and share its invite code, or enter the code your partner sent you.</p>
+      </div>
+
+      <div class="mt-8 grid gap-4 md:grid-cols-2">
+        <form id="createSpaceForm" class="soft-card rounded-3xl p-5 sm:p-6">
+          <div class="mb-4 flex h-11 w-11 items-center justify-center rounded-2xl bg-rosewood-100 text-xl">✦</div>
+          <h2 class="font-display text-2xl font-bold text-rosewood-950">Create a space</h2>
+          <p class="mt-2 text-sm leading-6 text-slate-500">You will receive a secure invite code for your partner.</p>
+          <label class="mt-5 block text-xs font-bold uppercase tracking-wide text-slate-500" for="coupleName">Diary name</label>
+          <input id="coupleName" class="mt-2 w-full rounded-xl border border-rosewood-100 bg-white px-4 py-3 text-sm outline-none focus:border-rosewood-400 focus:ring-4 focus:ring-rosewood-100" maxlength="50" placeholder="Our little universe" required />
+          <label class="mt-4 block text-xs font-bold uppercase tracking-wide text-slate-500" for="anniversaryDate">Anniversary date <span class="normal-case font-medium text-slate-400">(optional)</span></label>
+          <input id="anniversaryDate" class="mt-2 w-full rounded-xl border border-rosewood-100 bg-white px-4 py-3 text-sm outline-none focus:border-rosewood-400 focus:ring-4 focus:ring-rosewood-100" type="date" />
+          <button id="createSpaceBtn" class="mt-5 w-full rounded-xl bg-rosewood-700 px-4 py-3 text-sm font-bold text-white hover:bg-rosewood-800 disabled:opacity-60" type="submit">Create our diary</button>
+        </form>
+
+        <form id="joinSpaceForm" class="soft-card rounded-3xl p-5 sm:p-6">
+          <div class="mb-4 flex h-11 w-11 items-center justify-center rounded-2xl bg-rosewood-100 text-xl">⌁</div>
+          <h2 class="font-display text-2xl font-bold text-rosewood-950">Join your partner</h2>
+          <p class="mt-2 text-sm leading-6 text-slate-500">Use the six-character invite code from your partner.</p>
+          <label class="mt-5 block text-xs font-bold uppercase tracking-wide text-slate-500" for="inviteCodeInput">Invite code</label>
+          <input id="inviteCodeInput" class="mt-2 w-full rounded-xl border border-rosewood-100 bg-white px-4 py-3 text-center text-lg font-bold uppercase tracking-[.3em] outline-none focus:border-rosewood-400 focus:ring-4 focus:ring-rosewood-100" maxlength="6" autocomplete="off" placeholder="ABC123" required />
+          <button id="joinSpaceBtn" class="mt-5 w-full rounded-xl border border-rosewood-200 bg-white px-4 py-3 text-sm font-bold text-rosewood-800 hover:bg-rosewood-50 disabled:opacity-60" type="submit">Join shared diary</button>
+          <div class="mt-4 rounded-xl bg-rosewood-50 p-3 text-xs leading-5 text-rosewood-800">For privacy, a diary can have a maximum of two members.</div>
+        </form>
+      </div>
+    </div>
+  </section>
+
+  <!-- Main application -->
+  <div id="appShell" class="hidden min-h-screen md:grid md:grid-cols-[218px_1fr]">
+    <aside class="fixed inset-y-0 left-0 z-30 hidden w-[218px] border-r border-rosewood-100/80 bg-white/80 p-3.5 backdrop-blur-xl md:flex md:flex-col">
+      <div class="flex items-center gap-3 px-2 py-2">
+        <div class="flex h-10 w-10 items-center justify-center rounded-2xl bg-rosewood-100 text-rosewood-700">♥</div>
+        <div><p class="font-display text-lg font-bold text-rosewood-950">Pink Promise</p><p class="text-[10px] font-semibold uppercase tracking-[.14em] text-rosewood-500">Realtime diary</p></div>
+      </div>
+
+      <nav class="mt-7 space-y-1.5" aria-label="Main navigation">
+        <button class="nav-item active flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-slate-600" data-view="home" type="button"><span class="text-base">⌂</span> Home</button>
+        <button class="nav-item flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-slate-600" data-view="timeline" type="button"><span class="text-base">☷</span> Our diary</button>
+        <button class="nav-item flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-slate-600" data-view="gallery" type="button"><span class="text-base">▧</span> Gallery</button>
+        <button class="nav-item relative flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-slate-600" data-view="messages" type="button"><span class="text-base">✉</span> Messages <span id="desktopChatBadge" class="ml-auto hidden rounded-full bg-rosewood-600 px-2 py-0.5 text-[9px] font-bold text-white">0</span></button>
+        <button class="nav-item flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-slate-600" data-view="calendar" type="button"><span class="text-base">□</span> Calendar</button>
+        <button class="nav-item flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-slate-600" data-view="insights" type="button"><span class="text-base">⌁</span> Insights</button>
+        <button class="nav-item flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-slate-600" data-view="settings" type="button"><span class="text-base">⚙</span> Settings</button>
+      </nav>
+
+      <div class="mt-auto">
+        <div id="sidebarPartnerCard" class="rounded-2xl bg-gradient-to-br from-rosewood-50 to-white p-3 ring-1 ring-rosewood-100"></div>
+        <button id="sidebarNewEntryBtn" class="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-rosewood-700 px-3 py-3 text-sm font-bold text-white shadow-lg shadow-rosewood-100 hover:bg-rosewood-800" type="button"><span class="text-lg leading-none">＋</span> New entry</button>
+      </div>
+    </aside>
+
+    <main class="min-w-0 md:col-start-2">
+      <header class="sticky top-0 z-20 border-b border-rosewood-100/70 bg-white/75 px-3 py-2.5 backdrop-blur-xl sm:px-4 md:px-5">
+        <div class="mx-auto flex max-w-7xl items-center justify-between gap-3">
+          <div class="min-w-0">
+            <p id="mobileBrand" class="font-display text-base font-bold text-rosewood-950 md:hidden">Pink Promise</p>
+            <h1 id="pageTitle" class="hidden truncate font-display text-xl font-bold text-rosewood-950 md:block">Home</h1>
+          </div>
+          <div class="flex min-w-0 items-center gap-1.5 sm:gap-2">
+            <div id="statusCluster" class="hidden items-center gap-1.5 sm:flex">
+              <div id="syncBadge" class="flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1.5 text-[10px] font-bold text-emerald-700"><span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span> Synced</div>
+              <div id="driveSyncIndicator" class="flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-1.5 text-[10px] font-bold text-amber-700"><span class="h-1.5 w-1.5 rounded-full bg-amber-500"></span> Drive off</div>
+            </div>
+            <button id="themeToggleBtn" class="pressable flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-rosewood-100 bg-white text-sm text-rosewood-800 hover:bg-rosewood-50" type="button" aria-label="Toggle dark mode" title="Toggle dark mode">☾</button>
+            <button id="headerNewEntryBtn" class="pressable flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-rosewood-700 text-xs font-bold text-white shadow-sm hover:bg-rosewood-800 sm:w-auto sm:px-3.5" type="button" aria-label="Add memory"><span class="text-base leading-none">＋</span><span id="headerNewEntryLabel" class="ml-1 hidden sm:inline">Add memory</span></button>
+            <button id="profileMenuBtn" class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-rosewood-100 bg-white text-xs font-bold text-rosewood-800 hover:bg-rosewood-50" type="button" aria-label="Open profile menu">PP</button>
+          </div>
+        </div>
+      </header>
+
+      <div class="mx-auto max-w-7xl p-3 sm:p-4 md:p-5">
+        <div id="driveConnectionBanner" class="mb-3 hidden items-center justify-between gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-3 shadow-sm">
+          <div class="min-w-0"><p class="text-[10px] font-bold uppercase tracking-[.16em] text-amber-700">Private media storage</p><p id="driveConnectionText" class="mt-1 text-xs leading-5 text-amber-800">Connect Google Drive to upload and view private media.</p></div>
+          <button id="driveConnectBtn" class="pressable shrink-0 rounded-xl bg-amber-700 px-3 py-2 text-xs font-bold text-white hover:bg-amber-800 disabled:cursor-not-allowed disabled:opacity-50" type="button">Connect Drive</button>
+        </div>
+        <!-- Home -->
+        <section id="view-home" class="view-section active">
+          <div class="grid gap-4 xl:grid-cols-[1fr_320px]">
+            <div class="min-w-0 space-y-4">
+              <div class="soft-card relative overflow-hidden rounded-3xl p-5 sm:p-6">
+                <div class="absolute -right-10 -top-14 h-40 w-40 rounded-full bg-rosewood-100/70 blur-2xl"></div>
+                <div class="relative flex flex-col justify-between gap-5 sm:flex-row sm:items-center">
+                  <div>
+                    <p id="todayLabel" class="text-xs font-bold uppercase tracking-[.18em] text-rosewood-600"></p>
+                    <h2 id="welcomeTitle" class="mt-2 font-display text-3xl font-bold text-rosewood-950">Welcome back</h2>
+                    <p id="welcomeSubtitle" class="mt-2 max-w-xl text-sm leading-6 text-slate-500">Your shared story is ready for a new page.</p>
+                  </div>
+                  <div class="flex shrink-0 gap-2">
+                    <div class="rounded-2xl bg-rosewood-50 px-4 py-3 text-center ring-1 ring-rosewood-100"><strong id="daysTogetherStat" class="block text-xl text-rosewood-800">—</strong><span class="text-[10px] font-bold uppercase tracking-wide text-slate-500">days together</span></div>
+                    <div class="rounded-2xl bg-white px-4 py-3 text-center ring-1 ring-rosewood-100"><strong id="streakStat" class="block text-xl text-rosewood-800">0</strong><span class="text-[10px] font-bold uppercase tracking-wide text-slate-500">day streak</span></div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="grid gap-4 lg:grid-cols-[.85fr_1.15fr]">
+                <div class="soft-card rounded-3xl p-5">
+                  <div class="flex items-start justify-between gap-3"><div><p class="text-xs font-bold uppercase tracking-[.16em] text-rosewood-600">Daily check-in</p><h3 class="mt-1 font-display text-xl font-bold text-rosewood-950">How are you today?</h3></div><div class="flex items-center gap-1.5"><span id="moodSavedBadge" class="hidden rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-bold text-emerald-700">Saved</span><button id="clearMoodBtn" class="hidden rounded-lg px-2 py-1 text-[10px] font-bold text-slate-400 hover:bg-red-50 hover:text-red-600" type="button">Clear</button></div></div>
+                  <div id="moodPicker" class="mt-4 grid grid-cols-5 gap-2"></div>
+                  <div id="partnerMoodDisplay" class="mt-4 rounded-2xl bg-rosewood-50 p-3 text-xs text-slate-600"></div>
+                </div>
+
+                <div class="soft-card relative flex min-h-[220px] flex-col justify-between overflow-hidden rounded-3xl bg-gradient-to-br from-rosewood-800 to-rosewood-950 p-5 text-white">
+                  <div class="entertainment-orb absolute -right-5 -top-5 flex h-24 w-24 items-center justify-center rounded-full bg-white/10 text-4xl ring-1 ring-white/15" id="entertainmentEmoji">🎲</div>
+                  <div class="relative pr-16">
+                    <p class="text-xs font-bold uppercase tracking-[.18em] text-rosewood-200">Couple Spark</p>
+                    <h3 id="entertainmentTitle" class="mt-3 font-display text-2xl font-bold leading-tight">Tiny entertainment</h3>
+                    <p id="entertainmentText" class="mt-2 text-sm leading-6 text-rosewood-100">Tap for a quick game, date idea, or sweet challenge.</p>
+                  </div>
+                  <div class="relative mt-5 flex flex-wrap items-center gap-2">
+                    <button id="newEntertainmentBtn" class="pressable rounded-xl bg-white px-3.5 py-2 text-xs font-bold text-rosewood-800 hover:bg-rosewood-50" type="button">Surprise us</button>
+                    <button id="sendEntertainmentBtn" class="pressable rounded-xl border border-white/20 bg-white/10 px-3.5 py-2 text-xs font-bold text-white hover:bg-white/15" type="button">Send to chat</button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="soft-card rounded-3xl p-4 sm:p-5">
+                <div class="flex items-center justify-between gap-3">
+                  <div><p class="text-xs font-bold uppercase tracking-[.16em] text-rosewood-600">Recent pages</p><h3 class="mt-1 font-display text-xl font-bold text-rosewood-950">Latest memories</h3></div>
+                  <button class="text-xs font-bold text-rosewood-600 hover:text-rosewood-800" data-go-view="timeline" type="button">View all →</button>
+                </div>
+                <div id="recentEntries" class="mt-4 grid gap-3 md:grid-cols-2"></div>
+                <div id="recentEmpty" class="hidden rounded-2xl border border-dashed border-rosewood-200 p-7 text-center"><div class="text-2xl">♡</div><p class="mt-2 text-sm font-semibold text-rosewood-900">Your first memory starts here.</p><button class="mt-3 text-xs font-bold text-rosewood-600" data-open-entry type="button">Write the first page</button></div>
+              </div>
+            </div>
+
+            <aside class="space-y-4">
+              <div class="soft-card rounded-3xl p-5">
+                <div class="flex items-center justify-between"><div><p class="text-xs font-bold uppercase tracking-[.16em] text-rosewood-600">Our space</p><h3 id="coupleNameDisplay" class="mt-1 font-display text-xl font-bold text-rosewood-950">Our diary</h3></div><span class="text-xl">♥</span></div>
+                <div id="memberList" class="mt-4 space-y-2"></div>
+                <div class="mt-4 rounded-2xl bg-rosewood-50 p-3">
+                  <p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Invite code</p>
+                  <div class="mt-1 flex items-center justify-between gap-2"><strong id="inviteCodeDisplay" class="tracking-[.2em] text-rosewood-900">------</strong><button id="copyInviteBtn" class="rounded-lg bg-white px-2.5 py-1.5 text-[10px] font-bold text-rosewood-700 ring-1 ring-rosewood-100" type="button">Copy</button></div>
+                </div>
+              </div>
+
+              <div class="soft-card rounded-3xl p-5">
+                <div class="flex items-center justify-between"><div><p class="text-xs font-bold uppercase tracking-[.16em] text-rosewood-600">This month</p><h3 class="mt-1 font-display text-xl font-bold text-rosewood-950">Shared rhythm</h3></div><span id="rhythmScore" class="rounded-full bg-rosewood-50 px-2.5 py-1 text-xs font-bold text-rosewood-700">0%</span></div>
+                <div class="mt-4 h-2 overflow-hidden rounded-full bg-rosewood-100"><div id="rhythmBar" class="h-full rounded-full bg-gradient-to-r from-rosewood-400 to-rosewood-700 transition-all duration-500" style="width:0%"></div></div>
+                <div class="mt-4 grid grid-cols-3 gap-2 text-center">
+                  <div class="rounded-xl bg-slate-50 p-2"><strong id="monthEntriesStat" class="block text-lg text-rosewood-800">0</strong><span class="text-[9px] font-bold uppercase tracking-wide text-slate-400">Entries</span></div>
+                  <div class="rounded-xl bg-slate-50 p-2"><strong id="monthHeartsStat" class="block text-lg text-rosewood-800">0</strong><span class="text-[9px] font-bold uppercase tracking-wide text-slate-400">Hearts</span></div>
+                  <div class="rounded-xl bg-slate-50 p-2"><strong id="activeDaysStat" class="block text-lg text-rosewood-800">0</strong><span class="text-[9px] font-bold uppercase tracking-wide text-slate-400">Days</span></div>
+                </div>
+              </div>
+
+              <div id="typingCard" class="hidden rounded-2xl border border-rosewood-100 bg-rosewood-50 p-3 text-xs font-semibold text-rosewood-800"><span class="mr-1 inline-flex gap-0.5"><i class="h-1 w-1 animate-bounce rounded-full bg-rosewood-500"></i><i class="h-1 w-1 animate-bounce rounded-full bg-rosewood-500 [animation-delay:100ms]"></i><i class="h-1 w-1 animate-bounce rounded-full bg-rosewood-500 [animation-delay:200ms]"></i></span> <span id="typingText">Your partner is writing…</span></div>
+            </aside>
+          </div>
+        </section>
+
+        <!-- Timeline -->
+        <section id="view-timeline" class="view-section">
+          <div class="soft-card rounded-3xl p-4 sm:p-5">
+            <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+              <div><p class="text-xs font-bold uppercase tracking-[.16em] text-rosewood-600">Our diary</p><h2 class="mt-1 font-display text-2xl font-bold text-rosewood-950">Every page, together</h2><p id="timelineCount" class="mt-1 text-xs text-slate-500">0 entries</p></div>
+              <div class="grid gap-2 sm:grid-cols-[minmax(180px,1fr)_150px_140px]">
+                <input id="searchEntries" class="rounded-xl border border-rosewood-100 bg-white px-3 py-2.5 text-sm outline-none focus:border-rosewood-400 focus:ring-4 focus:ring-rosewood-100" placeholder="Search memories…" />
+                <select id="categoryFilter" class="rounded-xl border border-rosewood-100 bg-white px-3 py-2.5 text-sm outline-none focus:border-rosewood-400">
+                  <option value="all">All categories</option><option value="memory">Memory</option><option value="gratitude">Gratitude</option><option value="date">Date</option><option value="dream">Dream</option><option value="letter">Love letter</option>
+                </select>
+                <select id="authorFilter" class="rounded-xl border border-rosewood-100 bg-white px-3 py-2.5 text-sm outline-none focus:border-rosewood-400"><option value="all">Both of us</option><option value="me">Written by me</option><option value="partner">By my partner</option></select>
+              </div>
+            </div>
+          </div>
+          <div id="timelineEntries" class="mt-4 grid gap-4 lg:grid-cols-2"></div>
+          <div id="timelineEmpty" class="soft-card mt-4 hidden rounded-3xl p-10 text-center"><div class="text-3xl">♡</div><h3 class="mt-3 font-display text-xl font-bold text-rosewood-950">No memories found</h3><p class="mt-1 text-sm text-slate-500">Try another filter or write a new entry.</p></div>
+        </section>
+
+        <!-- Gallery -->
+        <section id="view-gallery" class="view-section">
+          <div class="soft-card rounded-3xl p-4 sm:p-5">
+            <div class="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+              <div>
+                <p class="text-xs font-bold uppercase tracking-[.16em] text-rosewood-600">Shared gallery</p>
+                <h2 class="mt-1 font-display text-2xl font-bold text-rosewood-950">Our moments in photos and videos</h2>
+                <div class="mt-3 flex flex-wrap gap-2 text-[10px] font-bold text-slate-500">
+                  <span class="rounded-full bg-rosewood-50 px-2.5 py-1"><strong id="galleryPhotoCount" class="text-rosewood-800">0</strong> photos</span>
+                  <span class="rounded-full bg-rosewood-50 px-2.5 py-1"><strong id="galleryVideoCount" class="text-rosewood-800">0</strong> videos</span>
+                  <span class="rounded-full bg-rosewood-50 px-2.5 py-1"><strong id="galleryFavoriteCount" class="text-rosewood-800">0</strong> favorites</span>
+                </div>
+              </div>
+              <div class="grid gap-2 sm:grid-cols-[minmax(180px,1fr)_140px_auto]">
+                <input id="gallerySearch" class="rounded-xl border border-rosewood-100 bg-white px-3 py-2.5 text-sm outline-none focus:border-rosewood-400 focus:ring-4 focus:ring-rosewood-100" placeholder="Search gallery…" />
+                <select id="gallerySort" class="rounded-xl border border-rosewood-100 bg-white px-3 py-2.5 text-sm outline-none focus:border-rosewood-400">
+                  <option value="newest">Newest first</option>
+                  <option value="oldest">Oldest first</option>
+                  <option value="title">Title A–Z</option>
+                </select>
+                <button id="addGalleryItemBtn" class="rounded-xl bg-rosewood-700 px-4 py-2.5 text-xs font-bold text-white hover:bg-rosewood-800" type="button">＋ Add media</button>
+              </div>
+            </div>
+
+            <div class="mt-5 flex gap-2 overflow-x-auto pb-1 scrollbar-thin">
+              <button class="gallery-tab active shrink-0 rounded-xl border border-rosewood-100 bg-white px-4 py-2.5 text-xs font-bold text-slate-600" data-gallery-tab="photos" type="button">Photos</button>
+              <button class="gallery-tab shrink-0 rounded-xl border border-rosewood-100 bg-white px-4 py-2.5 text-xs font-bold text-slate-600" data-gallery-tab="videos" type="button">Videos</button>
+              <button class="gallery-tab shrink-0 rounded-xl border border-rosewood-100 bg-white px-4 py-2.5 text-xs font-bold text-slate-600" data-gallery-tab="favorites" type="button">♥ Favorites</button>
+            </div>
+            <div id="galleryAlbumFilters" class="mt-3 flex gap-2 overflow-x-auto pb-1 scrollbar-thin"></div>
+            <div id="galleryPeriodFolders" class="mt-3 hidden grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4"></div>
+          </div>
+
+          <div id="galleryGrid" class="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5"></div>
+          <div id="galleryPagination" class="mt-4 hidden items-center justify-between gap-3 rounded-2xl border border-rosewood-100 bg-white/80 p-3"></div>
+          <div id="galleryEmpty" class="soft-card mt-4 hidden rounded-3xl p-10 text-center">
+            <div class="text-3xl">▧</div>
+            <h3 class="mt-3 font-display text-xl font-bold text-rosewood-950">No media found</h3>
+            <p class="mt-1 text-sm text-slate-500">Choose another album, adjust the search, or add a new memory.</p>
+          </div>
+        </section>
+
+        <!-- Messages -->
+        <section id="view-messages" class="view-section">
+          <div class="chat-panel soft-card relative overflow-hidden rounded-3xl">
+            <div class="chat-header flex items-center justify-between gap-2 border-b border-rosewood-100 bg-white/90 p-4 sm:p-5">
+              <button id="chatBackBtn" class="pressable h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-rosewood-50 text-lg font-bold text-rosewood-800 ring-1 ring-rosewood-100" type="button" aria-label="Back to home">‹</button>
+              <div class="min-w-0 flex-1"><p class="text-[10px] font-bold uppercase tracking-[.16em] text-rosewood-600 sm:text-xs">Private live chat</p><h2 class="mt-0.5 truncate font-display text-xl font-bold text-rosewood-950 sm:mt-1 sm:text-2xl">Messages for two</h2><p id="chatStatusText" class="mt-0.5 truncate text-[10px] text-slate-500 sm:mt-1 sm:text-xs">Realtime, private, and connected to your shared space.</p></div>
+              <div id="chatPartnerAvatar" class="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-rosewood-50 text-xs font-bold text-rosewood-800 ring-1 ring-rosewood-100 sm:h-11 sm:w-11">♡</div>
+            </div>
+            <div id="chatMessages" class="chat-scroll scrollbar-thin min-h-0 flex-1 space-y-3 overflow-y-auto bg-gradient-to-b from-rosewood-50/40 to-white p-3 sm:p-5"></div>
+            <button id="chatScrollBottomBtn" class="pressable absolute z-10 hidden h-9 w-9 items-center justify-center rounded-full border border-rosewood-100 bg-white text-sm font-bold text-rosewood-700 shadow-lg hover:bg-rosewood-50" type="button" aria-label="Scroll to newest message">↓</button>
+            <div id="chatTypingIndicator" class="hidden px-4 pb-2 text-[11px] font-semibold text-rosewood-700">Your partner is typing…</div>
+            <div class="chat-composer shrink-0 border-t border-rosewood-100 bg-white/90 p-2.5 sm:p-3">
+              <div id="chatReplyBanner" class="mb-2 hidden items-center justify-between rounded-xl bg-rosewood-50 px-3 py-2 text-xs text-rosewood-800"><span id="chatReplyText" class="truncate"></span><button id="cancelChatReplyBtn" class="ml-2 font-bold" type="button">×</button></div>
+              <div id="chatAttachmentPreview" class="mb-2 hidden rounded-xl border border-rosewood-100 bg-rosewood-50 p-2"></div>
+              <div id="smartRepliesPanel" class="mb-2 hidden rounded-xl border border-rosewood-100 bg-rosewood-50/70 p-2">
+                <div class="mb-1.5 flex items-center justify-between gap-2"><span class="text-[9px] font-bold uppercase tracking-[.14em] text-rosewood-600">Quick replies</span><button class="rounded-lg px-2 py-0.5 text-xs font-bold text-rosewood-600 hover:bg-white" data-dismiss-smart-replies type="button" aria-label="Hide quick replies">×</button></div>
+                <div id="smartReplies" class="flex gap-2 overflow-x-auto pb-1 scrollbar-thin"></div>
+              </div>
+              <form id="chatForm" class="flex items-end gap-2">
+                <label class="pressable flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-rosewood-100 bg-white text-lg text-rosewood-700 hover:bg-rosewood-50" title="Attach photo">
+                  <span>＋</span><input id="chatAttachmentInput" class="hidden" type="file" accept="image/*" />
+                </label>
+                <textarea id="chatInput" class="max-h-28 min-h-11 flex-1 resize-none rounded-xl border border-rosewood-100 bg-white px-3.5 py-3 text-sm leading-5 outline-none focus:border-rosewood-400 focus:ring-4 focus:ring-rosewood-100" maxlength="1200" rows="1" placeholder="Write a message…"></textarea>
+                <button id="sendChatBtn" class="pressable h-11 rounded-xl bg-rosewood-700 px-4 text-xs font-bold text-white hover:bg-rosewood-800 disabled:opacity-60" type="submit">Send</button>
+              </form>
+            </div>
+          </div>
+        </section>
+
+        <!-- Calendar -->
+        <section id="view-calendar" class="view-section">
+          <div class="grid gap-4 xl:grid-cols-[1fr_340px]">
+            <div class="soft-card rounded-3xl p-4 sm:p-5">
+              <div class="flex items-center justify-between gap-3">
+                <button id="prevMonthBtn" class="h-9 w-9 rounded-xl border border-rosewood-100 bg-white text-rosewood-800 hover:bg-rosewood-50" type="button">‹</button>
+                <h2 id="calendarMonthLabel" class="font-display text-xl font-bold text-rosewood-950"></h2>
+                <button id="nextMonthBtn" class="h-9 w-9 rounded-xl border border-rosewood-100 bg-white text-rosewood-800 hover:bg-rosewood-50" type="button">›</button>
+              </div>
+              <div class="mt-5 grid grid-cols-7 text-center text-[10px] font-bold uppercase tracking-wide text-slate-400"><span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span></div>
+              <div id="calendarGrid" class="mt-2 grid grid-cols-7 gap-1.5"></div>
+            </div>
+            <div class="soft-card rounded-3xl p-4 sm:p-5">
+              <p class="text-xs font-bold uppercase tracking-[.16em] text-rosewood-600">Selected day</p>
+              <h3 id="selectedDateLabel" class="mt-1 font-display text-xl font-bold text-rosewood-950">Choose a date</h3>
+              <div id="selectedDateEntries" class="mt-4 space-y-3"></div>
+              <button id="addForSelectedDateBtn" class="mt-4 hidden w-full rounded-xl border border-rosewood-200 bg-rosewood-50 px-3 py-2.5 text-xs font-bold text-rosewood-800" type="button">＋ Add entry for this day</button>
+            </div>
+          </div>
+        </section>
+
+        <!-- Insights -->
+        <section id="view-insights" class="view-section">
+          <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <div class="soft-card rounded-3xl p-5"><p class="text-xs font-bold uppercase tracking-[.14em] text-slate-400">Total memories</p><strong id="insightTotal" class="mt-2 block font-display text-4xl text-rosewood-900">0</strong><p class="mt-2 text-xs text-slate-500">Pages in your shared story</p></div>
+            <div class="soft-card rounded-3xl p-5"><p class="text-xs font-bold uppercase tracking-[.14em] text-slate-400">Heart reactions</p><strong id="insightHearts" class="mt-2 block font-display text-4xl text-rosewood-900">0</strong><p class="mt-2 text-xs text-slate-500">Little signs of appreciation</p></div>
+            <div class="soft-card rounded-3xl p-5"><p class="text-xs font-bold uppercase tracking-[.14em] text-slate-400">Active days</p><strong id="insightActiveDays" class="mt-2 block font-display text-4xl text-rosewood-900">0</strong><p class="mt-2 text-xs text-slate-500">Days with at least one entry</p></div>
+            <div class="soft-card rounded-3xl p-5"><p class="text-xs font-bold uppercase tracking-[.14em] text-slate-400">Current streak</p><strong id="insightStreak" class="mt-2 block font-display text-4xl text-rosewood-900">0</strong><p class="mt-2 text-xs text-slate-500">Consecutive days remembered</p></div>
+          </div>
+
+          <div class="mt-4 grid gap-4 lg:grid-cols-2">
+            <div class="soft-card rounded-3xl p-5"><div><p class="text-xs font-bold uppercase tracking-[.16em] text-rosewood-600">Mood notes</p><h3 class="mt-1 font-display text-xl font-bold text-rosewood-950">How this month feels</h3></div><div id="moodInsight" class="mt-5 space-y-3"></div></div>
+            <div class="soft-card rounded-3xl p-5"><div><p class="text-xs font-bold uppercase tracking-[.16em] text-rosewood-600">Categories</p><h3 class="mt-1 font-display text-xl font-bold text-rosewood-950">What you write about</h3></div><div id="categoryInsight" class="mt-5 space-y-3"></div></div>
+          </div>
+        </section>
+
+        <!-- Settings -->
+        <section id="view-settings" class="view-section">
+          <div class="grid gap-4 xl:grid-cols-[1fr_360px]">
+            <form id="settingsForm" class="soft-card rounded-3xl p-5 sm:p-6">
+              <p class="text-xs font-bold uppercase tracking-[.16em] text-rosewood-600">Personalize</p>
+              <h2 class="mt-1 font-display text-2xl font-bold text-rosewood-950">Diary settings</h2>
+              <div class="mt-6 grid gap-4 sm:grid-cols-2">
+                <div><label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500" for="settingsDisplayName">Your display name</label><input id="settingsDisplayName" class="w-full rounded-xl border border-rosewood-100 bg-white px-3.5 py-3 text-sm outline-none focus:border-rosewood-400 focus:ring-4 focus:ring-rosewood-100" maxlength="40" required /></div>
+                <div><label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500" for="settingsCoupleName">Diary name</label><input id="settingsCoupleName" class="w-full rounded-xl border border-rosewood-100 bg-white px-3.5 py-3 text-sm outline-none focus:border-rosewood-400 focus:ring-4 focus:ring-rosewood-100" maxlength="50" required /></div>
+                <div><label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500" for="settingsAnniversary">Anniversary date</label><input id="settingsAnniversary" class="w-full rounded-xl border border-rosewood-100 bg-white px-3.5 py-3 text-sm outline-none focus:border-rosewood-400 focus:ring-4 focus:ring-rosewood-100" type="date" /></div>
+                <div><label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500" for="settingsNickname">Partner nickname</label><input id="settingsNickname" class="w-full rounded-xl border border-rosewood-100 bg-white px-3.5 py-3 text-sm outline-none focus:border-rosewood-400 focus:ring-4 focus:ring-rosewood-100" maxlength="30" placeholder="Optional" /></div>
+              </div>
+              <button id="saveSettingsBtn" class="mt-5 rounded-xl bg-rosewood-700 px-4 py-3 text-sm font-bold text-white hover:bg-rosewood-800 disabled:opacity-60" type="submit">Save changes</button>
+            </form>
+
+            <div class="space-y-4">
+              <div class="soft-card rounded-3xl p-5">
+                <p class="text-xs font-bold uppercase tracking-[.16em] text-rosewood-600">Invite partner</p>
+                <div class="mt-3 flex items-center justify-between rounded-2xl bg-rosewood-50 p-4"><strong id="settingsInviteCode" class="text-xl tracking-[.22em] text-rosewood-900">------</strong><button id="settingsCopyCodeBtn" class="rounded-xl bg-white px-3 py-2 text-xs font-bold text-rosewood-700 ring-1 ring-rosewood-100" type="button">Copy</button></div>
+                <button id="regenerateCodeBtn" class="mt-3 w-full rounded-xl border border-rosewood-100 bg-white px-3 py-2.5 text-xs font-bold text-slate-600 hover:bg-rosewood-50" type="button">Generate a new code</button>
+              </div>
+              <div class="soft-card rounded-3xl p-5">
+                <div class="flex items-start justify-between gap-3"><div><p class="text-xs font-bold uppercase tracking-[.16em] text-rosewood-600">Media storage</p><p class="mt-1 text-sm font-bold text-rosewood-950">Google Drive</p><p class="mt-1 text-xs leading-5 text-slate-500">Future gallery files, diary photos, and chat attachments are stored privately in your dedicated Drive account.</p></div><span id="settingsDriveStatus" class="rounded-full bg-amber-100 px-2.5 py-1 text-[10px] font-bold text-amber-700">Not connected</span></div>
+                <div class="mt-4 grid gap-2 sm:grid-cols-2"><button id="settingsDriveConnectBtn" class="pressable rounded-xl bg-rosewood-700 px-3 py-2.5 text-xs font-bold text-white disabled:opacity-50" type="button">Connect Google Drive</button><button id="settingsDriveDisconnectBtn" class="hidden rounded-xl border border-rosewood-100 bg-white px-3 py-2.5 text-xs font-bold text-slate-600" type="button">Disconnect session</button></div>
+                <p class="mt-3 rounded-xl bg-rosewood-50 p-2.5 text-[10px] leading-4 text-rosewood-700">For the most reliable shared access, connect the same dedicated Google account on both devices. Access tokens stay only in the current browser session.</p>
+              </div>
+              <div class="soft-card rounded-3xl p-5">
+                <div class="flex items-start justify-between gap-3">
+                  <div class="min-w-0"><p class="text-xs font-bold uppercase tracking-[.16em] text-rosewood-600">One-time cleanup</p><p class="mt-1 text-sm font-bold text-rosewood-950">Move starter videos to Drive</p><p id="videoMigrationSettingsText" class="mt-1 text-xs leading-5 text-slate-500">Scan your local videos folder, upload every video to Google Drive, and replace the GitHub starter copies without breaking the gallery.</p></div>
+                  <span id="videoMigrationSettingsStatus" class="shrink-0 rounded-full bg-amber-100 px-2.5 py-1 text-[10px] font-bold text-amber-700">Ready</span>
+                </div>
+                <button id="openVideoMigrationBtn" class="pressable mt-4 w-full rounded-xl border border-rosewood-200 bg-rosewood-50 px-3 py-2.5 text-xs font-bold text-rosewood-800 hover:bg-rosewood-100" type="button">Move local videos to Google Drive</button>
+                <p class="mt-3 text-[10px] leading-4 text-slate-500">Run this once on the computer that contains <code class="rounded bg-rosewood-50 px-1 py-0.5 text-rosewood-700">assets/gallery/videos</code>. Your local files remain on the computer but will be removed from Git tracking after the final cleanup step.</p>
+              </div>
+              <div class="soft-card rounded-3xl p-5">
+                <div class="flex items-start justify-between gap-3">
+                  <div><p class="text-xs font-bold uppercase tracking-[.16em] text-rosewood-600">Installable app</p><p class="mt-1 text-sm font-bold text-rosewood-950">Pink Promise PWA</p><p id="pwaInstallDescription" class="mt-1 text-xs leading-5 text-slate-500">Install Pink Promise on this device for a standalone app experience.</p></div>
+                  <span id="pwaInstallStatus" class="rounded-full bg-rosewood-100 px-2.5 py-1 text-[10px] font-bold text-rosewood-700">Checking…</span>
+                </div>
+                <button id="installAppBtn" class="pressable mt-4 hidden w-full items-center justify-center gap-2 rounded-xl bg-rosewood-700 px-3 py-2.5 text-xs font-bold text-white hover:bg-rosewood-800" type="button"><span aria-hidden="true">⇩</span><span>Install Pink Promise</span></button>
+                <button id="installHelpBtn" class="mt-2 hidden w-full rounded-xl border border-rosewood-100 bg-white px-3 py-2.5 text-xs font-bold text-slate-600 hover:bg-rosewood-50" type="button">View installation steps</button>
+              </div>
+              <div class="soft-card rounded-3xl p-5">
+                <div class="flex items-center justify-between gap-3"><div><p class="text-xs font-bold uppercase tracking-[.16em] text-rosewood-600">Appearance</p><p class="mt-1 text-sm font-bold text-rosewood-950">Dark mode</p><p class="mt-1 text-xs text-slate-500">Comfortable viewing at night.</p></div><button id="settingsThemeToggle" class="pressable rounded-xl border border-rosewood-100 bg-white px-4 py-2.5 text-xs font-bold text-rosewood-800" type="button">Use dark mode</button></div>
+              </div>
+              <div class="soft-card rounded-3xl p-5">
+                <p class="text-xs font-bold uppercase tracking-[.16em] text-rosewood-600">Your data</p>
+                <button id="exportDataBtn" class="mt-3 w-full rounded-xl border border-rosewood-100 bg-white px-3 py-2.5 text-left text-xs font-bold text-slate-700 hover:bg-rosewood-50" type="button">↓ Export diary as JSON</button>
+                <button id="signOutBtn" class="mt-2 w-full rounded-xl border border-rosewood-100 bg-white px-3 py-2.5 text-left text-xs font-bold text-slate-700 hover:bg-rosewood-50" type="button">↪ Sign out</button>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <!-- Mobile navigation -->
+  <nav id="mobileNav" class="fixed inset-x-2 bottom-2 z-40 hidden grid-cols-5 rounded-2xl border border-rosewood-100 bg-white/95 p-1.5 shadow-2xl backdrop-blur-xl md:hidden" aria-label="Mobile navigation">
+    <button class="nav-item active rounded-xl py-2 text-center text-[9px] font-bold text-slate-500" data-view="home" type="button"><span class="block text-lg leading-5">⌂</span>Home</button>
+    <button class="nav-item rounded-xl py-2 text-center text-[9px] font-bold text-slate-500" data-view="timeline" type="button"><span class="block text-lg leading-5">☷</span>Diary</button>
+    <button class="nav-item rounded-xl py-2 text-center text-[9px] font-bold text-slate-500" data-view="gallery" type="button"><span class="block text-lg leading-5">▧</span>Gallery</button>
+    <button class="nav-item relative rounded-xl py-2 text-center text-[9px] font-bold text-slate-500" data-view="messages" type="button"><span class="block text-lg leading-5">✉</span>Chat<span id="mobileChatBadge" class="absolute right-2 top-1 hidden min-w-4 rounded-full bg-rosewood-600 px-1 text-[7px] leading-4 text-white">0</span></button>
+    <button id="mobileMoreBtn" class="rounded-xl py-2 text-center text-[9px] font-bold text-slate-500" type="button"><span class="block text-lg leading-5">•••</span>More</button>
+  </nav>
+
+  <!-- Entry modal -->
+  <div id="entryModal" class="modal-shell fixed inset-0 z-50 hidden items-center justify-center bg-rosewood-950/35 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="entryModalTitle">
+    <div class="modal-card scrollbar-thin w-full max-w-2xl rounded-[1.6rem] bg-white shadow-2xl">
+      <div class="sticky top-0 z-10 flex items-center justify-between border-b border-rosewood-100 bg-white/95 px-4 py-3 backdrop-blur sm:px-5">
+        <div><p class="text-[10px] font-bold uppercase tracking-[.18em] text-rosewood-600">Shared diary</p><h2 id="entryModalTitle" class="font-display text-xl font-bold text-rosewood-950">New memory</h2></div>
+        <button class="modal-close flex h-9 w-9 items-center justify-center rounded-xl bg-rosewood-50 text-rosewood-800 hover:bg-rosewood-100" data-close-modal="entryModal" type="button" aria-label="Close">×</button>
+      </div>
+      <form id="entryForm" class="p-4 sm:p-5">
+        <input id="entryId" type="hidden" />
+        <div class="grid gap-4 sm:grid-cols-[1fr_180px]">
+          <div><label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500" for="entryTitle">Title</label><input id="entryTitle" class="w-full rounded-xl border border-rosewood-100 bg-white px-3.5 py-3 text-sm outline-none focus:border-rosewood-400 focus:ring-4 focus:ring-rosewood-100" maxlength="80" required placeholder="A moment worth keeping" /></div>
+          <div><label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500" for="entryDate">Date</label><input id="entryDate" class="w-full rounded-xl border border-rosewood-100 bg-white px-3.5 py-3 text-sm outline-none focus:border-rosewood-400 focus:ring-4 focus:ring-rosewood-100" type="date" required /></div>
+        </div>
+        <div class="mt-4"><label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500" for="entryBody">Your words</label><textarea id="entryBody" class="min-h-32 w-full resize-y rounded-xl border border-rosewood-100 bg-white px-3.5 py-3 text-sm leading-6 outline-none focus:border-rosewood-400 focus:ring-4 focus:ring-rosewood-100" maxlength="4000" required placeholder="Write what happened, how it felt, or what you never want to forget…"></textarea><div class="mt-1 flex items-center justify-between text-[10px] text-slate-400"><span id="entryTypingHint">Your partner can see when you are writing.</span><span id="entryCharCount">0 / 4000</span></div></div>
+        <div class="mt-4 grid gap-4 sm:grid-cols-2">
+          <div><label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500" for="entryCategory">Category</label><select id="entryCategory" class="w-full rounded-xl border border-rosewood-100 bg-white px-3.5 py-3 text-sm outline-none focus:border-rosewood-400"><option value="memory">Memory</option><option value="gratitude">Gratitude</option><option value="date">Date</option><option value="dream">Dream</option><option value="letter">Love letter</option></select></div>
+          <div><label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500" for="entryMood">Mood</label><select id="entryMood" class="w-full rounded-xl border border-rosewood-100 bg-white px-3.5 py-3 text-sm outline-none focus:border-rosewood-400"><option value="loved">🥰 Loved</option><option value="happy">😊 Happy</option><option value="calm">😌 Calm</option><option value="tired">😴 Tired</option><option value="sad">🥺 Tender</option></select></div>
+        </div>
+        <div class="mt-4"><label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500" for="entryTags">Tags</label><input id="entryTags" class="w-full rounded-xl border border-rosewood-100 bg-white px-3.5 py-3 text-sm outline-none focus:border-rosewood-400 focus:ring-4 focus:ring-rosewood-100" maxlength="100" placeholder="coffee, first date, sunday" /></div>
+        <div class="mt-4 rounded-2xl border border-dashed border-rosewood-200 bg-rosewood-50/50 p-3">
+          <div class="flex flex-wrap items-center justify-between gap-2"><div><p class="text-xs font-bold uppercase tracking-wide text-slate-500">Memory photos</p><p class="mt-1 text-[10px] text-slate-400">Choose up to 8 photos from your device. They will appear as a clickable card deck.</p></div><label class="pressable cursor-pointer rounded-xl bg-white px-3 py-2 text-xs font-bold text-rosewood-800 ring-1 ring-rosewood-100">＋ Choose photos<input id="entryPhotoInput" class="hidden" type="file" accept="image/*" multiple /></label></div>
+          <div id="entryPhotoPreview" class="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-4"></div>
+          <div id="entryUploadProgress" class="mt-3 hidden"><div class="h-2 overflow-hidden rounded-full bg-rosewood-100"><div id="entryUploadProgressBar" class="h-full rounded-full bg-rosewood-600 transition-all" style="width:0%"></div></div><p id="entryUploadProgressText" class="mt-1 text-[10px] text-slate-500">Preparing photos…</p></div>
+        </div>
+        <div class="mt-5 flex flex-wrap items-center gap-2 border-t border-rosewood-100 pt-4">
+          <button id="deleteEntryFromModalBtn" class="mr-auto hidden rounded-xl border border-red-100 bg-red-50 px-4 py-2.5 text-xs font-bold text-red-700 hover:bg-red-100" type="button">Delete</button>
+          <button class="modal-close rounded-xl border border-rosewood-100 bg-white px-4 py-2.5 text-xs font-bold text-slate-600 hover:bg-rosewood-50" data-close-modal="entryModal" type="button">Cancel</button>
+          <button id="saveEntryBtn" class="rounded-xl bg-rosewood-700 px-5 py-2.5 text-xs font-bold text-white hover:bg-rosewood-800 disabled:opacity-60" type="submit">Save memory</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Memory viewer modal -->
+  <div id="memoryModal" class="modal-shell fixed inset-0 z-50 hidden items-center justify-center bg-rosewood-950/35 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="memoryModalTitle">
+    <div class="modal-card scrollbar-thin w-full max-w-2xl rounded-[1.6rem] bg-white shadow-2xl">
+      <div class="sticky top-0 z-10 flex items-center justify-between border-b border-rosewood-100 bg-white/95 px-4 py-3 backdrop-blur sm:px-5">
+        <div><p class="text-[10px] font-bold uppercase tracking-[.18em] text-rosewood-600">Shared memory</p><h2 id="memoryModalTitle" class="font-display text-xl font-bold text-rosewood-950">Diary entry</h2></div>
+        <button class="modal-close flex h-9 w-9 items-center justify-center rounded-xl bg-rosewood-50 text-rosewood-800 hover:bg-rosewood-100" data-close-modal="memoryModal" type="button" aria-label="Close">×</button>
+      </div>
+      <div id="memoryModalContent" class="p-4 sm:p-5"></div>
+    </div>
+  </div>
+
+  <!-- Gallery add/edit modal -->
+  <div id="galleryItemModal" class="modal-shell fixed inset-0 z-50 hidden items-center justify-center bg-rosewood-950/35 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="galleryItemModalTitle">
+    <div class="modal-card scrollbar-thin w-full max-w-xl rounded-[1.6rem] bg-white shadow-2xl">
+      <div class="sticky top-0 z-10 flex items-center justify-between border-b border-rosewood-100 bg-white/95 px-4 py-3 backdrop-blur sm:px-5">
+        <div><p class="text-[10px] font-bold uppercase tracking-[.18em] text-rosewood-600">Shared gallery</p><h2 id="galleryItemModalTitle" class="font-display text-xl font-bold text-rosewood-950">Add media</h2></div>
+        <button class="modal-close flex h-9 w-9 items-center justify-center rounded-xl bg-rosewood-50 text-rosewood-800 hover:bg-rosewood-100" data-close-modal="galleryItemModal" type="button" aria-label="Close">×</button>
+      </div>
+      <form id="galleryItemForm" class="p-4 sm:p-5">
+        <input id="galleryItemId" type="hidden" />
+        <div class="grid gap-3 sm:grid-cols-2">
+          <div>
+            <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500" for="galleryMediaType">Media type</label>
+            <select id="galleryMediaType" class="w-full rounded-xl border border-rosewood-100 bg-white px-3.5 py-3 text-sm outline-none focus:border-rosewood-400">
+              <option value="photo">Photo</option>
+              <option value="video">Video</option>
+            </select>
+          </div>
+          <div>
+            <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500" for="galleryAlbum">Album</label>
+            <select id="galleryAlbum" class="w-full rounded-xl border border-rosewood-100 bg-white px-3.5 py-3 text-sm outline-none focus:border-rosewood-400"></select>
+          </div>
+        </div>
+        <div id="galleryTogetherPeriodFields" class="mt-3 hidden gap-3 rounded-2xl border border-rosewood-100 bg-rosewood-50/60 p-3 sm:grid-cols-2">
+          <div>
+            <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500" for="galleryTogetherMonth">Month</label>
+            <select id="galleryTogetherMonth" class="w-full rounded-xl border border-rosewood-100 bg-white px-3.5 py-3 text-sm outline-none focus:border-rosewood-400">
+              <option value="01">January</option>
+              <option value="02">February</option>
+              <option value="03">March</option>
+              <option value="04">April</option>
+              <option value="05">May</option>
+              <option value="06">June</option>
+              <option value="07">July</option>
+              <option value="08">August</option>
+              <option value="09">September</option>
+              <option value="10">October</option>
+              <option value="11">November</option>
+              <option value="12">December</option>
+            </select>
+          </div>
+          <div>
+            <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500" for="galleryTogetherYear">Year</label>
+            <input id="galleryTogetherYear" class="w-full rounded-xl border border-rosewood-100 bg-white px-3.5 py-3 text-sm outline-none focus:border-rosewood-400" type="number" inputmode="numeric" min="2000" max="2100" placeholder="2026" />
+          </div>
+          <p id="galleryTogetherHint" class="sm:col-span-2 text-[10px] leading-4 text-rosewood-700">Folder format: Month Year, for example July 2026.</p>
+        </div>
+        <div id="galleryFileSection" class="mt-3 rounded-2xl border border-dashed border-rosewood-200 bg-rosewood-50/50 p-3">
+          <div class="flex flex-wrap items-center justify-between gap-2"><div><p class="text-xs font-bold uppercase tracking-wide text-slate-500">Upload from device</p><p id="galleryFileHelp" class="mt-1 text-[10px] text-slate-400">Bulk upload: up to 30 photos or 10 videos per batch.</p></div><label class="pressable cursor-pointer rounded-xl bg-white px-3 py-2 text-xs font-bold text-rosewood-800 ring-1 ring-rosewood-100">Choose files<input id="galleryFileInput" class="hidden" type="file" accept="image/*" multiple /></label></div>
+          <input id="galleryFilename" type="hidden" />
+          <div id="galleryUploadPreview" class="mt-3 hidden"></div>
+          <p class="mt-2 break-all rounded-lg bg-white/70 px-2.5 py-2 text-[10px] text-rosewood-700">Source: <code id="galleryPathPreview">Google Drive upload</code></p>
+          <div id="galleryUploadProgress" class="mt-3 hidden"><div class="h-2 overflow-hidden rounded-full bg-rosewood-100"><div id="galleryUploadProgressBar" class="h-full rounded-full bg-rosewood-600 transition-all" style="width:0%"></div></div><p id="galleryUploadProgressText" class="mt-1 text-[10px] text-slate-500">Preparing upload…</p></div>
+        </div>
+        <div class="mt-3 grid gap-3 sm:grid-cols-[1fr_160px]">
+          <div>
+            <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500" for="galleryTitle">Title / bulk prefix</label>
+            <input id="galleryTitle" class="w-full rounded-xl border border-rosewood-100 bg-white px-3.5 py-3 text-sm outline-none focus:border-rosewood-400 focus:ring-4 focus:ring-rosewood-100" maxlength="80" placeholder="Optional shared title or prefix" />
+          </div>
+          <div>
+            <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500" for="galleryDate">Date</label>
+            <input id="galleryDate" class="w-full rounded-xl border border-rosewood-100 bg-white px-3.5 py-3 text-sm outline-none focus:border-rosewood-400" type="date" required />
+          </div>
+        </div>
+        <div class="mt-3">
+          <label class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500" for="galleryDescription">Caption</label>
+          <textarea id="galleryDescription" class="min-h-24 w-full resize-y rounded-xl border border-rosewood-100 bg-white px-3.5 py-3 text-sm leading-6 outline-none focus:border-rosewood-400 focus:ring-4 focus:ring-rosewood-100" maxlength="500" placeholder="Optional story or caption…"></textarea>
+        </div>
+        <div class="mt-4 flex flex-wrap items-center gap-2 border-t border-rosewood-100 pt-4">
+          <button id="deleteGalleryFromModalBtn" class="mr-auto hidden rounded-xl border border-red-100 bg-red-50 px-4 py-2.5 text-xs font-bold text-red-700 hover:bg-red-100" type="button">Delete</button>
+          <button class="modal-close rounded-xl border border-rosewood-100 bg-white px-4 py-2.5 text-xs font-bold text-slate-600 hover:bg-rosewood-50" data-close-modal="galleryItemModal" type="button">Cancel</button>
+          <button id="saveGalleryItemBtn" class="rounded-xl bg-rosewood-700 px-5 py-2.5 text-xs font-bold text-white hover:bg-rosewood-800 disabled:opacity-60" type="submit">Add to gallery</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+
+  <!-- Starter video migration modal -->
+  <div id="videoMigrationModal" class="modal-shell fixed inset-0 z-[55] hidden items-center justify-center bg-rosewood-950/40 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="videoMigrationModalTitle">
+    <div class="modal-card scrollbar-thin w-full max-w-2xl rounded-[1.6rem] bg-white shadow-2xl">
+      <div class="sticky top-0 z-10 flex items-center justify-between border-b border-rosewood-100 bg-white/95 px-4 py-3 backdrop-blur sm:px-5">
+        <div><p class="text-[10px] font-bold uppercase tracking-[.18em] text-rosewood-600">Google Drive migration</p><h2 id="videoMigrationModalTitle" class="font-display text-xl font-bold text-rosewood-950">Move starter videos</h2></div>
+        <button class="modal-close flex h-9 w-9 items-center justify-center rounded-xl bg-rosewood-50 text-rosewood-800 hover:bg-rosewood-100" data-close-modal="videoMigrationModal" type="button" aria-label="Close">×</button>
+      </div>
+      <div class="p-4 sm:p-5">
+        <div class="rounded-2xl border border-rosewood-100 bg-rosewood-50/70 p-3 text-xs leading-5 text-rosewood-800">
+          Select the local <strong>assets/gallery/videos</strong> folder. Pink Promise will detect <strong>vlogs</strong> and <strong>normal-videos</strong>, upload them privately to Google Drive, create Firebase gallery records, and hide the old starter entries.
+        </div>
+
+        <div class="mt-4 rounded-2xl border border-dashed border-rosewood-200 p-4">
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <div><p class="text-xs font-bold uppercase tracking-wide text-slate-500">Local video folder</p><p class="mt-1 text-[11px] leading-5 text-slate-500">Choose the parent folder that contains both album folders.</p></div>
+            <label class="pressable cursor-pointer rounded-xl bg-rosewood-700 px-3 py-2.5 text-xs font-bold text-white hover:bg-rosewood-800">Choose videos folder<input id="videoMigrationFolderInput" class="hidden" type="file" accept="video/*" multiple webkitdirectory directory /></label>
+          </div>
+          <div id="videoMigrationSelection" class="mt-3 rounded-xl bg-slate-50 p-3 text-xs text-slate-500">No folder selected yet.</div>
+        </div>
+
+        <div id="videoMigrationProgress" class="mt-4 hidden rounded-2xl border border-rosewood-100 p-3">
+          <div class="flex items-center justify-between gap-3 text-xs"><strong id="videoMigrationProgressLabel" class="text-rosewood-900">Preparing videos…</strong><span id="videoMigrationProgressPercent" class="font-bold text-rosewood-700">0%</span></div>
+          <div class="mt-2 h-2 overflow-hidden rounded-full bg-rosewood-100"><div id="videoMigrationProgressBar" class="h-full rounded-full bg-gradient-to-r from-rosewood-400 to-rosewood-700 transition-all" style="width:0%"></div></div>
+          <p id="videoMigrationProgressDetail" class="mt-2 text-[10px] leading-4 text-slate-500">Keep this app open until the migration is complete.</p>
+        </div>
+
+        <div id="videoMigrationResult" class="mt-4 hidden rounded-2xl border border-emerald-100 bg-emerald-50 p-3 text-xs leading-5 text-emerald-800"></div>
+
+        <div class="mt-5 flex flex-wrap items-center justify-end gap-2 border-t border-rosewood-100 pt-4">
+          <button class="modal-close rounded-xl border border-rosewood-100 bg-white px-4 py-2.5 text-xs font-bold text-slate-600 hover:bg-rosewood-50" data-close-modal="videoMigrationModal" type="button">Close</button>
+          <button id="startVideoMigrationBtn" class="rounded-xl bg-rosewood-700 px-5 py-2.5 text-xs font-bold text-white hover:bg-rosewood-800 disabled:cursor-not-allowed disabled:opacity-50" type="button" disabled>Upload and migrate</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Gallery viewer modal -->
+  <div id="galleryViewerModal" class="modal-shell fixed inset-0 z-50 hidden items-center justify-center bg-rosewood-950/45 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="galleryViewerTitle">
+    <div class="modal-card scrollbar-thin w-full max-w-5xl rounded-[1.6rem] bg-white shadow-2xl">
+      <div class="sticky top-0 z-10 flex items-center justify-between border-b border-rosewood-100 bg-white/95 px-4 py-3 backdrop-blur sm:px-5">
+        <div class="min-w-0"><p class="text-[10px] font-bold uppercase tracking-[.18em] text-rosewood-600">Gallery memory</p><h2 id="galleryViewerTitle" class="truncate font-display text-xl font-bold text-rosewood-950">Media</h2></div>
+        <button class="modal-close flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-rosewood-50 text-rosewood-800 hover:bg-rosewood-100" data-close-modal="galleryViewerModal" type="button" aria-label="Close">×</button>
+      </div>
+      <div class="grid gap-4 p-3 sm:p-5 lg:grid-cols-[minmax(0,1fr)_290px]">
+        <div id="galleryViewerMedia" class="flex min-h-56 items-center justify-center overflow-hidden rounded-2xl bg-rosewood-950/95 p-2"></div>
+        <aside>
+          <button id="galleryViewerFavoriteBtn" class="w-full rounded-xl border border-rosewood-100 bg-rosewood-50 px-3 py-2.5 text-xs font-bold text-rosewood-800" type="button">♡ Add to favorites</button>
+          <div id="galleryViewerDetails" class="mt-4"></div>
+          <div id="galleryOwnerActions" class="mt-4 hidden grid-cols-2 gap-2 border-t border-rosewood-100 pt-4">
+            <button id="galleryViewerEditBtn" class="rounded-xl border border-rosewood-100 bg-white px-3 py-2.5 text-xs font-bold text-slate-700 hover:bg-rosewood-50" type="button">Edit</button>
+            <button id="galleryViewerDeleteBtn" class="rounded-xl border border-red-100 bg-red-50 px-3 py-2.5 text-xs font-bold text-red-700 hover:bg-red-100" type="button">Delete</button>
+          </div>
+        </aside>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mobile more menu -->
+  <div id="mobileMoreModal" class="modal-shell fixed inset-0 z-50 hidden items-center justify-center bg-rosewood-950/30 p-3 backdrop-blur-sm md:hidden" role="dialog" aria-modal="true" aria-labelledby="mobileMoreTitle">
+    <div class="modal-card w-full max-w-sm rounded-3xl bg-white p-4 shadow-2xl">
+      <div class="flex items-center justify-between"><div><p class="text-[10px] font-bold uppercase tracking-[.16em] text-rosewood-600">More</p><h2 id="mobileMoreTitle" class="font-display text-xl font-bold text-rosewood-950">Open another view</h2></div><button class="modal-close h-9 w-9 rounded-xl bg-rosewood-50 text-rosewood-800" data-close-modal="mobileMoreModal" type="button">×</button></div>
+      <div class="mt-4 grid grid-cols-3 gap-2">
+        <button class="rounded-2xl border border-rosewood-100 bg-white p-3 text-center text-xs font-bold text-slate-600 hover:bg-rosewood-50" data-mobile-more-view="calendar" type="button"><span class="mb-1 block text-xl">□</span>Calendar</button>
+        <button class="rounded-2xl border border-rosewood-100 bg-white p-3 text-center text-xs font-bold text-slate-600 hover:bg-rosewood-50" data-mobile-more-view="insights" type="button"><span class="mb-1 block text-xl">⌁</span>Insights</button>
+        <button class="rounded-2xl border border-rosewood-100 bg-white p-3 text-center text-xs font-bold text-slate-600 hover:bg-rosewood-50" data-mobile-more-view="settings" type="button"><span class="mb-1 block text-xl">⚙</span>Settings</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Profile menu modal -->
+  <div id="profileModal" class="modal-shell fixed inset-0 z-50 hidden items-center justify-center bg-rosewood-950/30 p-4 backdrop-blur-sm" role="dialog" aria-modal="true">
+    <div class="modal-card w-full max-w-sm rounded-3xl bg-white p-5 shadow-2xl">
+      <div class="flex items-center justify-between"><h2 class="font-display text-xl font-bold text-rosewood-950">Your profile</h2><button class="modal-close h-9 w-9 rounded-xl bg-rosewood-50 text-rosewood-800" data-close-modal="profileModal" type="button">×</button></div>
+      <div id="profileModalContent" class="mt-4"></div>
+      <button id="profileSettingsBtn" class="mt-4 w-full rounded-xl bg-rosewood-700 px-3 py-2.5 text-xs font-bold text-white" type="button">Open settings</button>
+    </div>
+  </div>
+
+  <!-- Confirmation modal -->
+  <div id="confirmModal" class="modal-shell fixed inset-0 z-[60] hidden items-center justify-center bg-rosewood-950/35 p-4 backdrop-blur-sm" role="alertdialog" aria-modal="true">
+    <div class="modal-card w-full max-w-sm rounded-3xl bg-white p-5 shadow-2xl">
+      <div id="confirmIcon" class="flex h-11 w-11 items-center justify-center rounded-2xl bg-rosewood-100 text-xl">?</div>
+      <h2 id="confirmTitle" class="mt-4 font-display text-xl font-bold text-rosewood-950">Are you sure?</h2>
+      <p id="confirmMessage" class="mt-2 text-sm leading-6 text-slate-500"></p>
+      <div class="mt-5 flex justify-end gap-2"><button id="confirmCancelBtn" class="rounded-xl border border-rosewood-100 px-4 py-2.5 text-xs font-bold text-slate-600" type="button">Cancel</button><button id="confirmAcceptBtn" class="rounded-xl bg-rosewood-700 px-4 py-2.5 text-xs font-bold text-white" type="button">Confirm</button></div>
+    </div>
+  </div>
+
+  <!-- PWA installation help -->
+  <div id="pwaInstallModal" class="modal-shell fixed inset-0 z-[65] hidden items-center justify-center bg-rosewood-950/35 p-3 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="pwaInstallModalTitle">
+    <div class="modal-card scrollbar-thin flex max-h-[calc(100dvh-1.5rem)] w-full max-w-md flex-col overflow-hidden rounded-3xl bg-white shadow-2xl">
+      <div class="flex shrink-0 items-center justify-between border-b border-rosewood-100 px-4 py-3">
+        <div><p class="text-[10px] font-bold uppercase tracking-[.16em] text-rosewood-600">Installable app</p><h2 id="pwaInstallModalTitle" class="font-display text-xl font-bold text-rosewood-950">Install Pink Promise</h2></div>
+        <button id="closePwaInstallModalBtn" class="h-9 w-9 rounded-xl bg-rosewood-50 text-rosewood-800 hover:bg-rosewood-100" type="button" aria-label="Close">×</button>
+      </div>
+      <div class="scrollbar-thin min-h-0 overflow-y-auto p-4 sm:p-5">
+        <div class="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-rosewood-100 to-rosewood-300 text-2xl text-rosewood-900 shadow-sm">♥</div>
+        <p id="pwaInstallModalIntro" class="mt-4 text-sm leading-6 text-slate-600">Install the app from your browser and open it from your home screen or desktop.</p>
+        <ol id="pwaInstallSteps" class="mt-4 space-y-3 text-sm text-slate-600"></ol>
+        <div class="mt-4 rounded-2xl bg-rosewood-50 p-3 text-xs leading-5 text-rosewood-800">The app remains online-first. Realtime sync, chat, and private Google Drive media still require an internet connection.</div>
+      </div>
+      <div class="flex shrink-0 justify-end border-t border-rosewood-100 p-3">
+        <button id="closePwaInstallModalFooterBtn" class="rounded-xl bg-rosewood-700 px-4 py-2.5 text-xs font-bold text-white hover:bg-rosewood-800" type="button">Got it</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toasts -->
+  <div id="toastContainer" class="pointer-events-none fixed right-3 top-3 z-[70] flex w-[min(360px,calc(100vw-24px))] flex-col gap-2"></div>
+
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <script type="module" src="./app.js"></script>
+  <script type="module" src="./pwa.js"></script>
+</body>
+</html>

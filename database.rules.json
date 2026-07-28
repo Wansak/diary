@@ -1,0 +1,165 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "users": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid",
+        ".validate": "!newData.exists() || (newData.hasChildren(['displayName', 'email']) && newData.child('displayName').isString() && newData.child('displayName').val().length > 0 && newData.child('displayName').val().length <= 40 && newData.child('email').isString() && (!newData.child('coupleId').exists() || root.child('couples').child(newData.child('coupleId').val()).child('members').child(auth.uid).exists()))"
+      }
+    },
+    "inviteCodes": {
+      "$code": {
+        ".read": "auth != null",
+        ".write": "auth != null && ((!data.exists() && newData.child('coupleId').isString() && root.child('couples').child(newData.child('coupleId').val()).child('members').child(auth.uid).exists()) || (data.exists() && !newData.exists() && root.child('couples').child(data.child('coupleId').val()).child('members').child(auth.uid).exists()))",
+        ".validate": "!newData.exists() || (newData.hasChildren(['coupleId', 'createdBy', 'createdAt']) && newData.child('coupleId').isString() && newData.child('createdBy').val() === auth.uid && newData.child('createdAt').isNumber())"
+      }
+    },
+    "couples": {
+      "$coupleId": {
+        ".read": "auth != null && data.child('members').child(auth.uid).exists()",
+        "name": {
+          ".write": "auth != null && root.child('couples').child($coupleId).child('members').child(auth.uid).exists()",
+          ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 50"
+        },
+        "anniversary": {
+          ".write": "auth != null && root.child('couples').child($coupleId).child('members').child(auth.uid).exists()",
+          ".validate": "newData.isString() && newData.val().length <= 10"
+        },
+        "inviteCode": {
+          ".write": "auth != null && root.child('couples').child($coupleId).child('members').child(auth.uid).exists()",
+          ".validate": "newData.isString() && newData.val().length === 6"
+        },
+        "createdBy": {
+          ".write": "auth != null && !data.exists() && newData.val() === auth.uid && root.child('couples').child($coupleId).child('members').child(auth.uid).child('role').val() === 'owner'",
+          ".validate": "newData.isString()"
+        },
+        "createdAt": {
+          ".write": "auth != null && !data.exists() && root.child('couples').child($coupleId).child('members').child(auth.uid).child('role').val() === 'owner'",
+          ".validate": "newData.isNumber()"
+        },
+        "partner": {
+          ".write": "auth != null && ((!data.exists() && newData.hasChildren(['uid', 'joinCode', 'joinedAt']) && newData.child('uid').val() === auth.uid && newData.child('joinCode').isString() && root.child('inviteCodes').child(newData.child('joinCode').val()).child('coupleId').val() === $coupleId && !root.child('users').child(auth.uid).child('coupleId').exists()) || (data.exists() && !newData.exists() && (data.child('uid').val() === auth.uid || root.child('couples').child($coupleId).child('members').child(auth.uid).child('role').val() === 'owner') && !root.child('couples').child($coupleId).child('members').child(data.child('uid').val()).exists()))",
+          ".validate": "!newData.exists() || (newData.hasChildren(['uid', 'joinCode', 'joinedAt']) && newData.child('uid').isString() && newData.child('uid').val() === auth.uid && newData.child('joinCode').isString() && newData.child('joinCode').val().length === 6 && newData.child('joinedAt').isNumber())"
+        },
+        "members": {
+          "$uid": {
+            ".write": "auth != null && auth.uid === $uid && ((!data.exists() && !root.child('couples').child($coupleId).exists() && newData.child('role').val() === 'owner' && newData.child('joinCode').val() === 'OWNER' && !root.child('users').child(auth.uid).child('coupleId').exists()) || (!data.exists() && root.child('couples').child($coupleId).child('partner').child('uid').val() === auth.uid && root.child('couples').child($coupleId).child('partner').child('joinCode').val() === newData.child('joinCode').val() && newData.child('role').val() === 'partner') || (data.exists() && newData.exists() && data.child('role').val() === newData.child('role').val() && data.child('joinCode').val() === newData.child('joinCode').val() && data.child('joinedAt').val() === newData.child('joinedAt').val()) || (data.exists() && !newData.exists() && ((data.child('role').val() === 'owner' && !root.child('couples').child($coupleId).child('createdBy').exists()) || (data.child('role').val() === 'partner' && root.child('users').child(auth.uid).child('coupleId').val() !== $coupleId))))",
+            ".validate": "!newData.exists() || (newData.hasChildren(['displayName', 'role', 'joinCode', 'joinedAt']) && newData.child('displayName').isString() && newData.child('displayName').val().length > 0 && newData.child('displayName').val().length <= 40 && (newData.child('role').val() === 'owner' || newData.child('role').val() === 'partner') && newData.child('joinCode').isString() && newData.child('joinedAt').isNumber())"
+          }
+        },
+        "entries": {
+          "$entryId": {
+            ".write": "auth != null && root.child('couples').child($coupleId).child('members').child(auth.uid).exists() && ((!data.exists() && newData.child('authorId').val() === auth.uid) || (data.exists() && data.child('authorId').val() === auth.uid))",
+            ".validate": "!newData.exists() || (newData.hasChildren(['title', 'body', 'date', 'category', 'mood', 'authorId', 'authorName', 'createdAt', 'updatedAt']) && newData.child('title').isString() && newData.child('title').val().length > 0 && newData.child('title').val().length <= 80 && newData.child('body').isString() && newData.child('body').val().length > 0 && newData.child('body').val().length <= 4000 && newData.child('date').isString() && newData.child('date').val().length === 10 && newData.child('category').isString() && newData.child('mood').isString() && newData.child('authorId').isString() && newData.child('authorName').isString() && newData.child('createdAt').isNumber() && newData.child('updatedAt').isNumber())",
+            "reactions": {
+              "$uid": {
+                ".write": "auth != null && auth.uid === $uid && root.child('couples').child($coupleId).child('members').child(auth.uid).exists()",
+                ".validate": "!newData.exists() || newData.val() === true"
+              }
+            },
+            "photos": {
+              "$photoId": {
+                ".validate": "!newData.exists() || (newData.hasChildren(['url', 'path', 'name', 'size', 'type']) && newData.child('url').isString() && newData.child('url').val().length <= 2000 && (!newData.child('driveFileId').exists() || (newData.child('driveFileId').isString() && newData.child('driveFileId').val().length <= 200)) && (newData.child('url').val().length > 0 || (newData.child('driveFileId').isString() && newData.child('driveFileId').val().length > 0)) && newData.child('path').isString() && newData.child('path').val().length <= 500 && newData.child('name').isString() && newData.child('name').val().length > 0 && newData.child('name').val().length <= 160 && newData.child('size').isNumber() && newData.child('size').val() >= 0 && newData.child('size').val() <= 20971520 && newData.child('type').isString() && newData.child('type').val().matches(/^image\\//) && (!newData.child('driveWebViewLink').exists() || (newData.child('driveWebViewLink').isString() && newData.child('driveWebViewLink').val().length <= 2000)))"
+              }
+            }
+          }
+        },
+        "moods": {
+          "$uid": {
+            ".write": "auth != null && auth.uid === $uid && root.child('couples').child($coupleId).child('members').child(auth.uid).exists()",
+            ".validate": "!newData.exists() || (newData.hasChildren(['mood', 'date', 'updatedAt']) && newData.child('mood').isString() && newData.child('date').isString() && newData.child('updatedAt').isNumber())"
+          }
+        },
+        "presence": {
+          "$uid": {
+            ".write": "auth != null && auth.uid === $uid && root.child('couples').child($coupleId).child('members').child(auth.uid).exists()",
+            ".validate": "!newData.exists() || (newData.hasChildren(['online', 'lastSeen']) && newData.child('online').isBoolean() && newData.child('lastSeen').isNumber())"
+          }
+        },
+        "typing": {
+          "$uid": {
+            ".write": "auth != null && auth.uid === $uid && root.child('couples').child($coupleId).child('members').child(auth.uid).exists()",
+            ".validate": "!newData.exists() || (newData.hasChildren(['active', 'updatedAt']) && newData.child('active').isBoolean() && newData.child('updatedAt').isNumber())"
+          }
+        },
+        "nicknames": {
+          "$uid": {
+            ".write": "auth != null && auth.uid === $uid && root.child('couples').child($coupleId).child('members').child(auth.uid).exists()",
+            ".validate": "!newData.exists() || (newData.isString() && newData.val().length <= 30)"
+          }
+        },
+        "gallery": {
+          "$mediaId": {
+            ".write": "auth != null && root.child('couples').child($coupleId).child('members').child(auth.uid).exists() && ((!data.exists() && newData.child('authorId').val() === auth.uid) || (data.exists() && data.child('authorId').val() === auth.uid && (!newData.exists() || newData.child('authorId').val() === auth.uid)))",
+            ".validate": "!newData.exists() || (newData.hasChildren(['type', 'album', 'filename', 'title', 'date', 'description', 'authorId', 'authorName', 'createdAt', 'updatedAt']) && (newData.child('type').val() === 'photo' || newData.child('type').val() === 'video') && newData.child('album').isString() && ((newData.child('type').val() === 'photo' && (newData.child('album').val() === 'with-friends' || newData.child('album').val() === 'psalm' || newData.child('album').val() === 'juan' || newData.child('album').val() === 'pets' || newData.child('album').val() === 'foods' || newData.child('album').val() === 'us-together')) || (newData.child('type').val() === 'video' && (newData.child('album').val() === 'vlogs' || newData.child('album').val() === 'normal-videos'))) && ((newData.child('album').val() === 'us-together' && newData.child('month').isString() && (newData.child('month').val() === '01' || newData.child('month').val() === '02' || newData.child('month').val() === '03' || newData.child('month').val() === '04' || newData.child('month').val() === '05' || newData.child('month').val() === '06' || newData.child('month').val() === '07' || newData.child('month').val() === '08' || newData.child('month').val() === '09' || newData.child('month').val() === '10' || newData.child('month').val() === '11' || newData.child('month').val() === '12') && newData.child('year').isNumber() && newData.child('year').val() >= 2000 && newData.child('year').val() <= 2100 && newData.child('folderPath').isString() && newData.child('folderPath').val().length > 0 && newData.child('folderPath').val().length <= 40) || (newData.child('album').val() !== 'us-together' && !newData.child('month').exists() && !newData.child('year').exists() && !newData.child('folderPath').exists())) && newData.child('filename').isString() && newData.child('filename').val().length > 0 && newData.child('filename').val().length <= 100 && newData.child('title').isString() && newData.child('title').val().length > 0 && newData.child('title').val().length <= 80 && newData.child('date').isString() && newData.child('date').val().length === 10 && newData.child('description').isString() && newData.child('description').val().length <= 500 && newData.child('authorId').isString() && newData.child('authorId').val() === auth.uid && newData.child('authorName').isString() && newData.child('authorName').val().length > 0 && newData.child('authorName').val().length <= 40 && newData.child('createdAt').isNumber() && newData.child('updatedAt').isNumber() && ((newData.child('driveFileId').isString() && newData.child('driveFileId').val().length > 0 && newData.child('driveFileId').val().length <= 200) || (newData.child('storageUrl').isString() && newData.child('storageUrl').val().length > 0 && newData.child('storageUrl').val().length <= 2000)))",
+            "storageUrl": {
+              ".validate": "!newData.exists() || (newData.isString() && newData.val().length <= 2000)"
+            },
+            "storagePath": {
+              ".validate": "!newData.exists() || (newData.isString() && newData.val().length <= 500)"
+            },
+            "fileSize": {
+              ".validate": "!newData.exists() || (newData.isNumber() && newData.val() >= 0 && newData.val() <= 262144000)"
+            },
+            "contentType": {
+              ".validate": "!newData.exists() || (newData.isString() && (newData.val().matches(/^image\\//) || newData.val().matches(/^video\\//)))"
+            },
+            "driveFileId": {
+              ".validate": "!newData.exists() || (newData.isString() && newData.val().length <= 200)"
+            },
+            "driveWebViewLink": {
+              ".validate": "!newData.exists() || (newData.isString() && newData.val().length <= 2000)"
+            }
+          }
+        },
+        "galleryFavorites": {
+          "$mediaId": {
+            ".write": "auth != null && !newData.exists() && root.child('couples').child($coupleId).child('gallery').child($mediaId).child('authorId').val() === auth.uid",
+            "$uid": {
+              ".write": "auth != null && auth.uid === $uid && root.child('couples').child($coupleId).child('members').child(auth.uid).exists()",
+              ".validate": "!newData.exists() || newData.val() === true"
+            }
+          }
+        },
+        "galleryStarterOverrides": {
+          "$mediaId": {
+            ".write": "auth != null && root.child('couples').child($coupleId).child('members').child(auth.uid).exists()",
+            ".validate": "!newData.exists() || (newData.hasChildren(['type', 'album', 'filename', 'title', 'date', 'description', 'updatedBy', 'updatedByName', 'updatedAt']) && (newData.child('type').val() === 'photo' || newData.child('type').val() === 'video') && newData.child('album').isString() && ((newData.child('type').val() === 'photo' && (newData.child('album').val() === 'with-friends' || newData.child('album').val() === 'psalm' || newData.child('album').val() === 'juan' || newData.child('album').val() === 'pets' || newData.child('album').val() === 'foods' || newData.child('album').val() === 'us-together')) || (newData.child('type').val() === 'video' && (newData.child('album').val() === 'vlogs' || newData.child('album').val() === 'normal-videos'))) && ((newData.child('album').val() === 'us-together' && newData.child('month').isString() && (newData.child('month').val() === '01' || newData.child('month').val() === '02' || newData.child('month').val() === '03' || newData.child('month').val() === '04' || newData.child('month').val() === '05' || newData.child('month').val() === '06' || newData.child('month').val() === '07' || newData.child('month').val() === '08' || newData.child('month').val() === '09' || newData.child('month').val() === '10' || newData.child('month').val() === '11' || newData.child('month').val() === '12') && newData.child('year').isNumber() && newData.child('year').val() >= 2000 && newData.child('year').val() <= 2100 && newData.child('folderPath').isString() && newData.child('folderPath').val().length > 0 && newData.child('folderPath').val().length <= 40) || (newData.child('album').val() !== 'us-together' && !newData.child('month').exists() && !newData.child('year').exists() && !newData.child('folderPath').exists())) && newData.child('filename').isString() && newData.child('filename').val().length > 0 && newData.child('filename').val().length <= 100 && newData.child('title').isString() && newData.child('title').val().length > 0 && newData.child('title').val().length <= 80 && newData.child('date').isString() && newData.child('date').val().length === 10 && newData.child('description').isString() && newData.child('description').val().length <= 500 && newData.child('updatedBy').val() === auth.uid && newData.child('updatedByName').isString() && newData.child('updatedByName').val().length > 0 && newData.child('updatedByName').val().length <= 40 && newData.child('updatedAt').isNumber())"
+          }
+        },
+        "galleryStarterHidden": {
+          "$mediaId": {
+            ".write": "auth != null && root.child('couples').child($coupleId).child('members').child(auth.uid).exists()",
+            ".validate": "!newData.exists() || newData.val() === true"
+          }
+        },
+        "messages": {
+          "$messageId": {
+            ".write": "auth != null && root.child('couples').child($coupleId).child('members').child(auth.uid).exists() && ((!data.exists() && newData.child('senderId').val() === auth.uid) || (data.exists() && data.child('senderId').val() === auth.uid))",
+            ".validate": "!newData.exists() || (newData.hasChildren(['text', 'senderId', 'senderName', 'createdAt', 'updatedAt']) && newData.child('text').isString() && newData.child('text').val().length <= 1200 && (newData.child('text').val().length > 0 || newData.child('attachment').exists()) && newData.child('senderId').isString() && (!data.exists() || newData.child('senderId').val() === data.child('senderId').val()) && newData.child('senderName').isString() && newData.child('senderName').val().length > 0 && newData.child('senderName').val().length <= 40 && newData.child('createdAt').isNumber() && newData.child('updatedAt').isNumber() && (!newData.child('editedAt').exists() || newData.child('editedAt').isNumber()) && (!newData.child('replyTo').exists() || (newData.child('replyTo').hasChildren(['id', 'senderName', 'text']) && newData.child('replyTo').child('id').isString() && newData.child('replyTo').child('senderName').isString() && newData.child('replyTo').child('text').isString() && newData.child('replyTo').child('text').val().length <= 100)) && (!newData.child('attachment').exists() || (newData.child('attachment').hasChildren(['url', 'path', 'name', 'size', 'type']) && newData.child('attachment').child('url').isString() && newData.child('attachment').child('url').val().length <= 2000 && (!newData.child('attachment').child('driveFileId').exists() || (newData.child('attachment').child('driveFileId').isString() && newData.child('attachment').child('driveFileId').val().length <= 200)) && (newData.child('attachment').child('url').val().length > 0 || (newData.child('attachment').child('driveFileId').isString() && newData.child('attachment').child('driveFileId').val().length > 0)) && newData.child('attachment').child('path').isString() && newData.child('attachment').child('path').val().length <= 500 && newData.child('attachment').child('name').isString() && newData.child('attachment').child('name').val().length <= 160 && newData.child('attachment').child('size').isNumber() && newData.child('attachment').child('size').val() <= 20971520 && newData.child('attachment').child('type').isString() && newData.child('attachment').child('type').val().matches(/^image\\//) && (!newData.child('attachment').child('driveWebViewLink').exists() || (newData.child('attachment').child('driveWebViewLink').isString() && newData.child('attachment').child('driveWebViewLink').val().length <= 2000)))))",
+            "reactions": {
+              "$uid": {
+                ".write": "auth != null && auth.uid === $uid && root.child('couples').child($coupleId).child('members').child(auth.uid).exists()",
+                ".validate": "!newData.exists() || newData.val() === true"
+              }
+            }
+          }
+        },
+        "chatTyping": {
+          "$uid": {
+            ".write": "auth != null && auth.uid === $uid && root.child('couples').child($coupleId).child('members').child(auth.uid).exists()",
+            ".validate": "!newData.exists() || (newData.hasChildren(['active', 'updatedAt']) && newData.child('active').isBoolean() && newData.child('updatedAt').isNumber())"
+          }
+        },
+        "chatRead": {
+          "$uid": {
+            ".write": "auth != null && auth.uid === $uid && root.child('couples').child($coupleId).child('members').child(auth.uid).exists()",
+            ".validate": "!newData.exists() || newData.isNumber()"
+          }
+        }
+      }
+    }
+  }
+}

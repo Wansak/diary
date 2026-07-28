@@ -1,0 +1,17 @@
+# Pink Promise video files are stored in Google Drive, not GitHub.
+/assets/gallery/videos/vlogs/*
+!/assets/gallery/videos/vlogs/.gitkeep
+/assets/gallery/videos/normal-videos/*
+!/assets/gallery/videos/normal-videos/.gitkeep
+
+# Keep local upload/migration leftovers out of Git.
+*.part
+*.upload
+
+# Never upload gallery videos to GitHub
+assets/gallery/**/*.mp4
+assets/gallery/**/*.mov
+assets/gallery/**/*.m4v
+assets/gallery/**/*.mkv
+assets/gallery/**/*.webm
+assets/gallery/**/*.avi
